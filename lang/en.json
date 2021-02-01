@@ -1,0 +1,144 @@
+{
+    "phrases": {
+        "now_daytime": [
+            "It is now **daytime**. Use `{prefix}lynch <player>` to vote to lynch <player>."
+        ], // prefix
+
+        "now_nighttime": [
+            "It is now **nighttime**."
+        ],
+
+        "almost_day": [
+            "**A few {villagers} awake early and notice it is still dark outside. The night is almost over and there are still whispers heard in the village**"
+        ],
+
+        "almost_night": [
+            "**As the sun sinks inexorably toward the horizon, turning the lanky pine trees into fire-edged silhouettes, the <villager|pl> are reminded that very little time remains for them to reach a decision; if darkness falls before they have done so, the majority will win the vote. No one will be lynched if there are no votes or an even split.**"
+        ],
+
+        "night_summary": [
+            "Night lasted **{time}**. The {villagers} wake up and search the village."
+        ],
+
+        "day_summary": [
+            "Day lasted **{time}**. The {villagers}, exhausted from the day's events, go to bed."
+        ],
+
+
+
+        "no_kills": [
+            "The {villagers} discover the dead body of a beloved pet penguin, but luckily no one was harmed.",
+            "The {villagers} discover the dead body of a beloved pet dog, but luckily no one was harmed.",
+            "The {villagers} discover the dead body of a beloved pet cat, but luckily no one was harmed.",
+            "Paw prints and tufts of fur are found circling the village, but everyone seems unharmed.",
+            "Some house doors have been opened.",
+            "A scent much like that of a wolf permeates the air.",
+            "Half-buried wolf droppings are found.",
+            "Traces of wolf fur are found."
+        ],
+
+        "dead_body": [
+            "The dead <body|{pl}> of {listing} <was|{pl}> found. Those remaining mourn the tragedy."
+        ],
+
+        "not_enough_votes": [
+            "Not enough votes were cast to lynch a player."
+        ],
+
+        "meekly_vote": [
+            "**{voter}** meekly votes to not lynch anyone today."
+        ],
+
+        "abstain": [
+            "The village has agreed to not lynch anyone today."
+        ],
+
+        "impatient_vote": [
+            "**{voter}** impatiently votes to lynch **{votee}**."
+        ],
+
+        "lynched": [
+            "The {villagers} have agreed to lynch **{lynched}**, a **{role}**.",
+            "The {villagers} perform surgery to obtain the heart of **{lynched}**, now known to be a **{role}**. They put it in a plastic cup.",
+            "The {villagers} perform surgery to obtain the brains of **{lynched}**, now known to be a **{role}**. They seal it in a glass jar.",
+            "Reluctantly, the {villagers} lead **{lynched}** to the gallows, who is later found to be a **{role}**.",
+            "The {villagers} sacrifice **{lynched}** to the belunga god, who is satisfied with the **{role}** for now.",
+            "For SCIENCE, the {villagers} throw **{lynched}** into a volcano. They discover that the melting point of a **{role}** is less than that of lava.",
+            "The {villagers} force **{lynched}** to play Russian Roulette. The town square is stained with the remains of the **{role}**.",
+            "The {villagers}, after much debate, finally decide on lynching **{lynched}**, who turned out to be... a **{role}**.",
+            "After a prolonged struggle, **{lynched}** is forced to the gallows, and is discovered after death to be a **{role}**.",
+            "The {villagers} choose to hang **{lynched}**; however, the rope stretches and breaks, and the ensuing fall kills the **{role}**."
+        ], // lynched, role
+
+        "lynched_no_reveal": [
+            "The {villagers} have agreed to lynch **{lynched}**.",
+            "The {villagers} perform surgery to obtain the heart of **{lynched}**. They put it in a plastic cup.",
+            "The {villagers} perform surgery to obtain the brains of **{lynched}**. They seal it in a glass jar.",
+            "Reluctantly, the {villagers} lead **{lynched}** to the gallows.",
+            "The {villagers} sacrifice **{lynched}** to the belunga god, who is satisfied with the offering for now.",
+            "For SCIENCE, the {villagers} throw **{lynched}** into a volcano. They discover their melting point to be less than that of lava.",
+            "The {villagers} force **{lynched}** to play Russian Roulette. The town square is stained with their remains.",
+            "The {villagers}, after much debate, finally decide on lynching **{lynched}**.",
+            "After a prolonged struggle, **{lynched}** is forced to the gallows.",
+            "The {villagers} choose to hang **{lynched}**; however, the rope stretches and breaks, and the ensuing fall kills them instead."
+        ],
+
+
+        "no_win": [
+            "Everyone died. The town sits abandoned, collecting dust."
+        ],
+
+        "wolf_win": [
+            "The number of uninjured {villagers} is equal or less than the number of living {wolves}! The {wolves} overpower the remaining {villagers} and devour them whole."
+        ],
+
+        "village_win": [
+            "All the {wolves} are dead! The surviving {villagers} gather the bodies of the dead {wolves}, roast them, and have a BBQ in celebration."
+        ],
+
+
+        "end_role_reveal": [
+            "The <{role}|{pl}> <was|{pl} {listing}."
+        ],
+
+
+        "end_game": [
+            "{mentions} Game over! Night lasted **{night_length}**. Day lasted **{day_length}**. Game lasted **{game_length}**.\n{reason}"
+        ],
+
+        "end_game_no_winners": [
+            "No one wins!"
+        ],
+
+        "end_game_winners": [
+            "The winner <is|{pl}> {listing}!"
+        ],
+    },
+
+    "teams": {
+        "village": "village",
+        "wolf": "wolf"
+    },
+
+    "roles": {
+        "villager": {
+            "sg": "villager",
+            "pl": "villagers"
+        },
+        "wolf": {
+            "sg": "wolf",
+            "pl": "wolves"
+        },
+    },
+
+    "totems": {
+
+    },
+
+
+    "plurals": {
+        "body": "bodies",
+        "was": "were",
+        "is": "are"
+    }
+}
