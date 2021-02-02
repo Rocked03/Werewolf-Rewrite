@@ -9,12 +9,10 @@ WEREWOLF_NOTIFY_ROLE_ID = 1234567890 # replace this. id of optional 'Werewolf No
 ADMINS = [1234567890, 2345678901, ...] # replace this. user ids to grant Werewolf Admin perms to. the bot owner automatically gets all perms.
 IGNORE_LIST = [] # users to ignore
 
-TOKENS_GIVEN = 5 # number of commands allowed...
-TOKEN_RESET = 10 # in this many seconds
-IGNORE_THRESHOLD = 7 # number of commands in ^ seconds before ignoring the user
 NOTIFY_FILE = 'notify.txt' # saving Werewolf Notify users
 BACKUP_INTERVAL = 300 # How often in seconds to backup stasis.json
 MESSAGE_LANGUAGE = 'en' # language (not really working at this stage)
+RETRY_RUN_GAME = 3
 
 LOG_FILE = 'debug.txt' # file to save debug stuff to
 MIN_LOG_LEVEL = 1

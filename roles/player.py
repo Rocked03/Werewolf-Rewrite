@@ -6,8 +6,6 @@ class Player:
         self.bot = bot
         self.id = _id  # player id
         self._user = user
-        self._roles = [role]  # list of all roles player had
-        self._role = None
         self._name = None
         self._nickname = None
         self._discriminator = None
@@ -17,18 +15,17 @@ class Player:
         send = self._user.send
         mention = self._user.mention
 
+        class Voting:
+            start = False
+            gamemode = None
+            reveal = True
+        self._vote = Voting
+
+
     def __str__(self):
         if self._nickname: return self._nickname
         elif self._name: return self._name
         else: return self.id
-
-    @property
-    def role(self):
-        return self._roles[-1]  # most recent role
-
-    @property
-    def orig_role(self):
-        return self._roles[0]  # original role
 
     @property
     def name(self):
@@ -57,4 +54,8 @@ class Player:
     @property
     def real(self):
         return self._real
+    
+    @property
+    def vote(self):
+        return self._vote
     

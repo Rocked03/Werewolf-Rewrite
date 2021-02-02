@@ -8,8 +8,12 @@ class Role:
         self._description = None
         self._team = None
 
+        self._death_role = None
+        self._seen_role = None
+
         self._template = Template()
         self._totems = Totems()
+        self._items = Items()
         self._alive = True
         self._vote = None
         self._revealed = False
@@ -35,6 +39,14 @@ class Role:
     def team(self):
         return self._team
     
+
+    @property
+    def death_role(self):
+        return self._death_role
+
+    @property
+    def seen_role(self):
+        return self._seen_role
 
 
     @property
@@ -76,4 +88,5 @@ class Template:
 class Totems:
     placeholder = 0
 
-class 
+class Items:
+    placeholder = 0

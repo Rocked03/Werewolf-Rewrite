@@ -113,6 +113,34 @@
         "end_game_winners": [
             "The winner <is|{pl}> {listing}!"
         ],
+
+
+
+        "welcome": [
+            "{listing}, Welcome to Werewolf, the popular detective/social party game (a theme of Mafia). Using the **{gamemode}** gamemode with **{count}** players.\nAll players check for PMs from me for instructions. If you did not receive a pm, please try `{prefix}myrole` to resend your role."
+        ],
+
+
+        "not_enough_roles": [
+            "Not enough roles; added {extra} {default} to role list."
+        ],
+
+        "too_many_roles": [
+            "Too many roles; removed {roles} from the role list."
+        ],
+
+
+        "role_attribution_fail": [
+            "{listing}, role attribution failed {count} times. Cancelling game."
+        ],
+
+        "game_loop_break": [
+            "{listing}, game loop broke. Attempting to resume game..."
+        ],
+
+        "game_loop_fail": [
+            "{listing}, game loop broke {count} times. Cancelling game."
+        ],
     },
 
     "teams": {

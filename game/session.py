@@ -8,7 +8,6 @@ class Session:
 		self._phase = None                 # phase?
 		self._in_session = False           # playing?
 		self._players = []                 # {players dict}
-		# self._events = {}                 # events
 
 		self._daynight = False             # is day?
 		self._day_start = 0                # day time start
@@ -45,10 +44,6 @@ class Session:
 	@property
 	def players(self):
 		return self._players
-
-	# @property
-	# def events(self):
-	# 	return self._events
 	
 
 	@property
@@ -90,12 +85,12 @@ class Session:
 		return self._latest_night_elapsed
 	
 	@property
-	def daycount(self):
-		return self._daycount
+	def day_count(self):
+		return self._day_count
 	
 	@property
-	def nightcount(self):
-		return self._nightcount
+	def night_count(self):
+		return self._night_count
 
 
 	@property

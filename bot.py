@@ -17,6 +17,7 @@ bot = commands.Bot(command_prefix=BOT_PREFIX, description='Werewolf')
 initial_extensions = [
     'cogs.owner',
     'cogs.meta',
+    'game.game'
 ]
 
 if __name__ == '__main__':
@@ -46,8 +47,7 @@ async def on_ready():
         if bot.WEREWOLF_SERVER: break
     
     if not boy.WEREWOLF_SERVER:
-      await bot.shutdown(f'Error: could not find guild with id {WEREWOLF_SERVER_ID}. '
-                          f'Perhaps you forgot to invite the bot?\n{invite_url}')
+      await bot.shutdown(f'Error: could not find guild with id {WEREWOLF_SERVER_ID}.')
     bot.GAME_CHANNEL = bot.WEREWOLF_SERVER.get_channel(GAME_CHANNEL_ID)
     bot.DEBUG_CHANNEL = bot.WEREWOLF_SERVER.get_channel(DEBUG_CHANNEL_ID)
     bot.ADMINS_ROLE = bot.WEREWOLF_SERVER.get_role(ADMINS_ROLE_ID)

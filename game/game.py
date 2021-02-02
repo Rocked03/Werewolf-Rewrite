@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from discord.ext import commands
 
-from .engine import GameEngine
+from engine import GameEngine
 
 
 class Game(commands.Cog, name="Game"):
