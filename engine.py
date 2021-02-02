@@ -6,6 +6,8 @@ from enum import auto, Enum
 
 from session import Session
 
+from config import *
+
 
 class GameState(Enum):
     INIT = 'init'
@@ -38,10 +40,10 @@ class GameEngine:
         self.setup()
         self.declaration()
 
-        self.lang = self.load_language(LANGUAGE)
+        self.lang = self.load_language(MESSAGE_LANGUAGE)
 
     def setup(self):
-        self.sessions = {}
+        self.bot.sessions = {}
 
     def declaration(self):
         self.dwarn = DAY_WARNING
@@ -64,10 +66,14 @@ class GameEngine:
             return json.load(f)
 
 
-    def sessionsetup(self):
-        session = Session()
+    def sessionsetup(self, guild, channel):
+        session = Session(channel.id)
+        session.guild = guild
+        session.channel = channel
         session.phase = GameState.LOBBY
         # session.gamemode = 'default'
+
+        self.bot.sessions[channel.id] = session
 
         return session
 
@@ -82,20 +88,15 @@ class GameEngine:
 
         return session
 
-    # def start(self):
-    #     self.phase = GameState.GAME_SETUP
-    #     self.dispatch(EventType.GAME_SETUP, {'gamemode': self.gamemode})
+    def run_game(self, session):
+        session.phase = GameState.GAME_SETUP
 
-    # def add_event_listener(self, event_type: EventType, callback):
-    #     # callback takes arguments (engine, event_type, data?)
-    #     try:
-    #         self.events[event_type].append(callback)
-    #     except KeyError:
-    #         self.events[event_type] = [callback]
+        # lobby perms
 
-    # def dispatch(self, event_type, data):
-    #     for callback in self.events[event_type]:
-    #         callback(self, event_type, data)
+
+
+        self.session_update('push', session)
+
 
 
     def win_condition(self, session):
@@ -168,7 +169,7 @@ class GameEngine:
 
                     # amnesia stuff
 
-                    session = self.playerupdate(session, player)
+                    session = self.player_update(session, player)
 
         # traitor!
 
@@ -181,8 +182,10 @@ class GameEngine:
 
         warn = False
         # NIGHT LOOP
-        while self.win_condition(session) is None and session.night and session.in_session
+        while self.in_session(session) and session.night:
+            session = self.session_update('pull', session)
             session = await self.night_loop(session, warn)
+            session = self.session_update('push', session)
             await asyncio.sleep(0.1)
 
         session.latest_night_elapsed = datetime.utcnow() - session.night_start
@@ -308,7 +311,9 @@ class GameEngine:
 
         # DAY LOOP
         while self.in_session(session) and not lynched_player and session.day:
+            session = self.session_update('pull', session)
             session, lynched_player, totem_dict, warn = await day_loop(session, lynched_player, warn)
+            session = self.session_update('push', session)
             await asyncio.sleep(0.1)
 
         if not lynched_player and self.in_session(session):
@@ -375,7 +380,7 @@ class GameEngine:
                         #     if player.role == 'executioner' and not player.win:
                         #         if player.target == lynched_player:
                         #             player.template.win = True
-                        #             session = self.playerupdate(session, player)
+                        #             session = self.player_update(session, player)
                         #             await player.send("ergoaheolgrhaui you win")
 
 
@@ -537,7 +542,14 @@ class GameEngine:
         return role_msg
 
 
-    def playerupdate(self, session, player):
+    def session_update(self, action, session):
+        if action == 'pull':
+            return self.bot.sessions[session.id]
+        elif action == 'push':
+            self.bot.sessions[sessions.id] = session
+            return session
+
+    def player_update(self, session, player):
         sp = session.players
         sp[sp.index([x for x in sp if x.id == player.id][0])] = player
         return session
@@ -579,7 +591,7 @@ class GameEngine:
 
         # more assassin stuff
 
-        session = self.playerupdate(session, player)
+        session = self.player_update(session, player)
         return session
 
     def wolf_kill(self, session, alive_players):
@@ -721,3 +733,4 @@ class DeathType(Enum):
     WOLF_KILL = auto()
     LYNCH = auto()
     IDLE = auto()
+

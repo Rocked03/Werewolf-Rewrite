@@ -2,7 +2,9 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 
 class Session:
-	def __init__(self):
+	def __init__(self, _id):
+		self.id = _id
+
 		self._phase = None                 # phase?
 		self._in_session = False           # playing?
 		self._players = []                 # {players dict}

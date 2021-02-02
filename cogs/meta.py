@@ -1,22 +1,30 @@
 import asyncio
+import datetime
 
 import discord
 from discord.ext import commands
 
 
 
-class Meta:
+class Meta(commands.Cog, name="Meta"):
     '''Cog for all bot-related stuff'''
 
     def __init__(self, bot):
         self.bot = bot
 
     @commands.command()
-    async def ping(self, ctx):
-        '''ping takes no arguments
-
-        Checks if the bot is online.'''
-        await ctx.send('Pong!')
+    async def ping(ctx):
+        """Checks the bot's latency"""
+        latency = self.bot.latency*1000
+        latency = round(latency,2)
+        latency = str(latency)
+        embed = discord.Embed(colour=0x7289da, timestamp=datetime.datetime.utcnow())
+        embed.set_author(name="Ping!")
+        embed.add_field(name='Bot latency', value=latency+"ms")
+        embed.set_footer(
+                        text=f"{str(ctx.author)} | {bot.user.name} | {ctx.prefix}{ctx.command.name}",
+                        icon_url=bot.user.avatar_url)
+        await ctx.send(embed=embed)
 
 
 def setup(bot):
