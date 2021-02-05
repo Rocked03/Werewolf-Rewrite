@@ -3629,17 +3629,17 @@ def get_votes(totem_dict):
     return vote_dict
 
 def _autocomplete(string, lst):
-    if string in lst:
-        return (string, 1)
+    if string.lower() in [x.lower() for x in lst]:
+        return string, 1
     else:
         choices = []
         for item in lst:
-            if item.startswith(string):
+            if item.lower().startswith(string.lower()):
                 choices.append(item)
         if len(choices) == 1:
-            return (choices[0], 1)
+            return choices[0], 1
         else:
-            return (choices, len(choices))
+            return choices, len(choices)
 
 def verify_gamemode(gamemode, verbose=True):
     msg = ''

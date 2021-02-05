@@ -1,8 +1,9 @@
 class Role:
     def __init__(self, player):
         self._player = player
-        send = self._player.send
-        mention = self._player.mention
+        self.send = self._player.send
+        self.mention = self._player.mention
+        self.id = self._player.id
 
         self._role = None
         self._description = None
@@ -46,6 +47,8 @@ class Role:
 
     @property
     def seen_role(self):
+        if self._template.cursed:
+            return self._template.seen['cursed']
         return self._seen_role
 
 
@@ -81,8 +84,12 @@ class Role:
 
 
 class Template:
+    cursed = False
     target = {
         
+    }
+    seen = {
+        'cursed': 'wolf'
     }
 
 class Totems:

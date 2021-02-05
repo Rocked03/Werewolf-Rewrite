@@ -2,7 +2,7 @@
     "phrases": {
         "now_daytime": [
             "It is now **daytime**. Use `{prefix}lynch <player>` to vote to lynch <player>."
-        ], // prefix
+        ],
 
         "now_nighttime": [
             "It is now **nighttime**."
@@ -116,6 +116,7 @@
 
 
 
+
         "welcome": [
             "{listing}, Welcome to Werewolf, the popular detective/social party game (a theme of Mafia). Using the **{gamemode}** gamemode with **{count}** players.\nAll players check for PMs from me for instructions. If you did not receive a pm, please try `{prefix}myrole` to resend your role."
         ],
@@ -130,6 +131,7 @@
         ],
 
 
+
         "role_attribution_fail": [
             "{listing}, role attribution failed {count} times. Cancelling game."
         ],
@@ -141,12 +143,152 @@
         "game_loop_fail": [
             "{listing}, game loop broke {count} times. Cancelling game."
         ],
+
+
+
+        "no_session_channel": [
+            "There doesn't appear to be a game running in this channel!"
+        ],
+
+        "no_session_user": [
+            "You don't seem to be in any game! To join a game, type `{prefix}join` in a game channel."
+        ],
+
+        "alreadyin": [
+            "You are already playing!",
+            "You are already in!"
+        ],
+
+        "maxplayers": [
+            "The maximum number of players ({max_players}) have already joined the game.",
+            "There's no room left for you to join this game. There are already {max_players} players in this lobby."
+        ],
+
+        "first_join": [
+            "**{name}** has started a game of Werewolf. Type `{prefix}join` to join. Type `{prefix}start` to start the game."
+        ],
+
+        "joined_game": [
+            "**{name}** joined the game and raised the number of players to **{count}**."
+        ],
+
+        "start_timeout": [
+            "{players}, the game has taken too long to start and has been cancelled. If you are still here and would like to start a new game, please do `{prefix}join` again."
+        ],
+
+        "idle_lobby": [
+            "**{mention}, you have been idling for a while. Please say something soon or you might be declared dead.**"
+        ],
+
+        "idle_dm": [
+            "**You have been idling in {channel} for a while. Please say something soon or you might be declared dead.**"
+        ],
+
+        "idle": [
+            "**{name}** didn't get out of bed for a very long time and has been found dead."
+        ],
+
+
+        "idle_no_reveal": [
+            "**{name}** didn't get out of bed for a very long time and has been found dead. The survivors bury the **{role}**"
+        ],
+
+
+
+        "use_in_channel": [
+            "Please use the `{command}` command in {channel}!"
+        ],
+
+        "use_in_dm": [
+            "Please use the `{command}` command in DMs"
+        ],
+
+
+        "admin_set_gamemode": [
+            "An admin has already set a gamemode."
+        ],
+
+        "admin_set_gamemode": [
+            "An admin has already set the reveal setting."
+        ],
+
+        "gamemode_voted": [
+            "You have voted for the **{gamemode}** gamemode."
+        ],
+
+        "reveal_voted": [
+            "You have voted **{_not}to reveal** roles."
+        ],
+
+        "not_playing_start": [
+            "You are not playing, so you cannot start the game! Type `{prefix}join` to join the game."
+        ],
+
+
+        "multiple_options": [
+            "Your query matched {count} option{pl}: {options}"
+        ],
+
+        "multiple_options_2": [
+            "Your query was also similar to these option{pl}: {options}"
+        ],
+
+        "no_player_found": [
+            "Could not find player named `{query}`"
+        ],
+
+        "player_dead": [
+            "Player ({name}) is already dead!"
+        ],
+
+        "min_player_start": [
+            "Please wait until there are at least {min} players.",
+            "You cannot start the game until there are at least {min} players."
+        ],
+
+        "already_voted": [
+            "You've already voted!"
+        ],
+
+        "wait_start": [
+            "Please wait at least {seconds} more second{pl}."
+        ],
+
+        "start_vote": [
+            "**{name}** has voted to start the game. **{count}** more vote{pl} needed."
+        ],
+
+        "lynch_vote": [
+            "You have voted to lynch **{name}**!"
+        ],
+
+        "no_vote": [
+            "You have no vote to retract! To vote, type `{prefix}vote`!"
+        ],
+
+        "retract_vote": [
+            "You retracted your vote{pl}."
+        ],
+
+        "retract_kill": [
+            "You retracted your kill{pl}"
+        ],
+
+        "abstain_first_day": [
+            "The village may not abstain on the first day."
+        ],
+
+        "abstain": [
+            "**{name}** votes to not lynch anyone today."
+        ],
     },
+
 
     "teams": {
         "village": "village",
         "wolf": "wolf"
     },
+
 
     "roles": {
         "villager": {
@@ -158,6 +300,7 @@
             "pl": "wolves"
         },
     },
+
 
     "totems": {
 

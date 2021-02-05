@@ -46,7 +46,6 @@ class GameEngine:
         self.gamemodes = self.load_gamemodes()
 
     def setup(self):
-        self.bot.sessions = {}
         self.roles = roles_list
 
     def declaration(self):
@@ -69,7 +68,9 @@ class GameEngine:
         self.village_roles = ['seer', 'villager']
         self.wolf_roles = ['wolf']
         self.neutral_roles = []
-        self.templates = []
+        self.templates = ['cursed']
+
+        self.seen_wolf = ['wolf', 'cursed']
 
 
     def load_language(self, language):
@@ -86,26 +87,31 @@ class GameEngine:
             return json.load(f)
 
 
-    def sessionsetup(self, guild, channel):
-        session = Session(channel.id)
-        session.guild = guild
-        session.channel = channel
-        session.phase = GameState.LOBBY
+    def session_setup(self, channel):
+        session = Session(channel)
+        session.phase(GameState.LOBBY)
 
-        self.bot.sessions[channel.id] = session
+        self.bot.sessions[session.id] = session
+        self.bot.sessionstask[session.id] {
+            'wait_bucket': None,
+            'wait_timer': None,
+            'game_start_timeout_loop': None,
+            'session_start_loop': None,
+            'idle': {}
+        }
 
         return session
 
 
-    def run_game(self, session):
-        session.phase = GameState.GAME_SETUP
+    async def run_game(self, session):
+        session.phase(GameState.GAME_SETUP)
 
         # lobby perms
 
-        session.in_session = True
+        session.in_session(True)
         session.set_night()
 
-        player_count = len(session.preplayers)
+        player_count = session.player_count
 
         if not session.gamemode:
             vote_dict = {}
@@ -114,8 +120,8 @@ class GameEngine:
                     vote_dict[player.vote] += 1
                 elif player.vote.gamemode:
                     vote_dict = 1
-            topvote = [g for g, n in vote_dict.items() if n >= len(session.players) // 2 + 1]
-            if topvote: session.gamemode = self.gamemodes[random.choice(topvote)]
+            topvote = [g for g, n in vote_dict.items() if n >= session.player_count // 2 + 1]
+            if topvote: session.gamemode(self.gamemodes[random.choice(topvote)])
 
 
         if not session.gamemode:
@@ -130,23 +136,23 @@ class GameEngine:
                 gamemode_list += [name] * chance
 
             gamemode = random.choice(gamemode_list)
-            session.gamemode = self.gamemodes[gamemode]
+            session.gamemode(self.gamemodes[gamemode])
 
         reveal_votes = [player.vote.reveal for player in session.preplayers if player.vote.reveal is not None]
-        session.reveal = reveal_votes.count(True) > reveal_votes.count(False)
+        session.reveal(reveal_votes.count(True) >= reveal_votes.count(False) * 1.00001)
 
 
         # LOCK LOBBY
 
         if player_count < session.gamemode['min_players'] or player_count > session.gamemode['max_players']:
-            session.gamemode = self.gamemodes['default']
+            session.gamemode(self.gamemodes['default'])
 
         # STASIS
 
         await session.send(self.lg('welcome',
             listing=' '.join([x.mention for x in self.sort_players(session.preplayers, False)]),
             gamemode=session.gamemode['name'],
-            count=len(session.preplayers),
+            count=session.player_count,
             prefix=BOT_PREFIX
         ))
 
@@ -188,47 +194,48 @@ class GameEngine:
 
 
 
-    def win_condition(self, session):
-        return False
-
-
     async def game_loop(self, session=None, retry=False):
         # PRE-GAME
         if retry:
             await session.send(self.lg('welcome',
                 listing=' '.join([x.mention for x in self.sort_players(session.players)]),
                 gamemode=session.gamemode['name'],
-                count=len(session.preplayers),
+                count=session.player_count,
                 prefix=BOT_PREFIX
             ))
 
         # GAME START
         while session.in_session and not self.win_condition(session):
-            elif session.phase == GameState.SUNSET:
+            if session.phase == GameState.SUNSET:
                 session = await self.sunset(session, 'post-day')
-                session.phase = GameState.SUNSET
+                session.phase(GameState.SUNSET2)
+                session = self.session_update('push', session)
 
             elif session.phase == GameState.SUNSET2: # NIGHT
                 # SUNSET
-                session.phase = GameState.SUNSET
+                session.phase(GameState.SUNSET)
                 session = await self.sunset(session, 'pre-night')
+                session = self.session_update('push', session)
 
                 # NIGHT
-                session.phase = GameState.NIGHT
+                session.phase(GameState.NIGHT)
                 session = await self.night(session)
-
-                session.phase = GameState.SUNRISE
+                session.phase(GameState.SUNRISE)
+                session = self.session_update('push', session)
 
             elif session.phase == GameState.SUNRISE: # SUNRISE
                 session = await self.sunrise(session)
-                session.phase = GameState.DAY
+                session.phase(GameState.DAY)
+                session = self.session_update('push', session)
 
             elif session.phase == GameState.DAY: # DAY
                 session = await self.day(session)
-                session.phase = GameState.SUNSET
+                session.phase(GameState.SUNSET)
+                session = self.session_update('push', session)
 
         # GAME END
         if session.in_session:
+            session = self.session_update('pull', session)
             win_team, win_lore, winners = self.win_condition(session)
             end_stats = self.end_game_stats(session)
 
@@ -242,15 +249,15 @@ class GameEngine:
 
     async def sunset(self, session, when):
         if when == 'pre-night':
-            session.night_start = datetime.utcnow()
+            session.night_start(datetime.utcnow())
 
-            session.num_kills = 1
+            session.num_kills(1)
             for player in session.players: # Totems
                 pass
 
         elif when == 'post-day':
             session.set_night()
-            session.day_count += 1
+            session.day_count(1)
 
             if self.in_session(session):
                 await session.send(self.lg('day_summary', time=self.timedeltatostr(session.latest_day_elapsed)))
@@ -275,7 +282,7 @@ class GameEngine:
         return session
 
     async def night(self, session):
-        session.night_start = datetime.utcnow()
+        session.night_start(datetime.utcnow())
         await session.send(self.lg('now_nighttime'))
 
         warn = False
@@ -283,14 +290,14 @@ class GameEngine:
         while self.in_session(session) and session.night:
             session = self.session_update('pull', session)
             session = await self.night_loop(session, warn)
-            session = self.session_update('push', session)
+            session = self.session_update('push', session, ['_daynight', '_day_start', '_num_wolf_kills'])
             await asyncio.sleep(0.1)
 
-        session.latest_night_elapsed = datetime.utcnow() - session.night_start
-        session.night_elapsed += session.latest_night_elapsed
-        session.night_count += 1
+        session.latest_night_elapsed(datetime.utcnow() - session.night_start)
+        session.night_elapsed(session.latest_night_elapsed)
+        session.night_count(1)
 
-        session.day_start = datetime.utcnow()
+        session.day_start(datetime.utcnow())
 
         return session
 
@@ -323,14 +330,14 @@ class GameEngine:
 
         if end_night:
             session.set_day()
-            session.day_start = datetime.utcnow()
+            session.day_start(datetime.utcnow())
 
-        session.num_wolf_kills = num_kills
+        session.num_wolf_kills(num_kills)
 
         return session
 
     async def sunrise(self, session):
-        session.night_count += 1
+        session.night_count(1)
 
         killed_msg = []
         killed_dict = {p: 0 for p in session.players}
@@ -363,16 +370,17 @@ class GameEngine:
                 killed_msg.append(self.lg('no_kills'))
         else:
             l = len(killed_players)
-            dead_bodies = [f"**{self.get_name(p)}**{f", a **{self.lgr(p.death_role)}**" if session.reveal}" for p in killed_players]  # may need lang fix
+            dead_bodies = [f"**{self.get_name(p)}**{f', a **{self.lgr(p.death_role)}**' if session.reveal else ''}" for p in killed_players]  # may need lang fix
             killed_msg.append(self.lg("dead_body", 
                 pl=self.pl(l),
                 listing={self.listing(dead_bodies, session.reveal)}
             ))
 
         if session.in_session and not self.win_condition(session):
+            killed_msg_final = '\n'.join(killed_msg)
             await session.send(
-                self.lg('night_summary', time=self.timedeltatostr(session.latest_night_elapsed), self.lgr('villager', 'pl'))
-                + f'\n\n{'\n'join(killed_msg)}'
+                self.lg('night_summary', time=self.timedeltatostr(session.latest_night_elapsed))
+                + f"\n\n{killed_msg_final}"
             )
 
             for player in session.players: # more totem stuff - 'angry'
@@ -408,7 +416,7 @@ class GameEngine:
         while self.in_session(session) and not lynched_player and session.day:
             session = self.session_update('pull', session)
             session, lynched_player, totem_dict, warn = await day_loop(session, lynched_player, warn)
-            session = self.session_update('push', session)
+            session = self.session_update('push', session, ['_night_start', '_daynight'])
             await asyncio.sleep(0.1)
 
         if not lynched_player and self.in_session(session):
@@ -420,10 +428,10 @@ class GameEngine:
                 lynched_player = max_voted[0]
 
         if session.in_session:
-            session.night_start = datetime.utcnow()
-        session.latest_day_elapsed = datetime.utcnow() - session.day_start
-        session.day_elapsed += session.latest_day_elapsed
-        session.day_count += 1
+            session.night_start(datetime.utcnow())
+        session.latest_day_elapsed(datetime.utcnow() - session.day_start)
+        session.day_elapsed(session.latest_day_elapsed)
+        session.day_count(1)
 
 
         lynched_msg = []
@@ -437,9 +445,10 @@ class GameEngine:
                 await session.send('\n'.join(lynched_msg))
 
             else:
+                lynched_player = self.find_player(session, lynched_player)
                 lynched_name = self.get_name(lynched_player)
 
-                for player in [x for x in totem_dict if x.alive and totem_dict[x] > 0 and x != lynched_player]:
+                for player in [x for x in totem_dict if x.alive and totem_dict[x] > 0 and x.id != lynched_player]:
                     lynched_msg.append(self.lg('impatient_vote',
                         voter=self.get_name(player),
                         votee=lynched_name
@@ -503,7 +512,7 @@ class GameEngine:
             lynched_player = random.choice(max_voted)
 
         if (datetime.utcnow() - session.day_start).total_seconds() > self.dtmout:
-            session.night_start = datetime.utcnow()
+            session.night_start(datetime.utcnow())
             session.set_night()
 
         if not warn and (datetime.utcnow() - session.day_start).total_seconds() > self.dwarn:
@@ -520,10 +529,10 @@ class GameEngine:
 
         if session.day:
             if session.day_start:
-                session.day_elapsed += datetime.utcnow() - session.day_start
+                session.day_elapsed(datetime.utcnow() - session.day_start)
         else:
             if session.night_start:
-                session.night_elapsed += datetime.utcnow() - session.night_start
+                session.night_elapsed(datetime.utcnow() - session.night_start)
 
         msg = [self.lg('end_game',
             mentions = ' '.join(self.sort_players([x.mention for x in session.players])),
@@ -644,7 +653,7 @@ class GameEngine:
         massive_role_list = []
         roles_gamemode_template_list = []
         gm = self.gamemodes[gamemode]
-        player_count = len(session.players)
+        player_count = session.player_count
 
         gamemode_roles = self.get_roles(gm, player_count)
 
@@ -659,18 +668,25 @@ class GameEngine:
         if debug_message:
             pass # log stuff
 
-        session.original_roles_amount = dict(gamemode_roles)
+        session.original_roles_amount(dict(gamemode_roles))
 
 
         random.shuffle(massive_role_list)
 
         for player in session.preplayers:
             role = massive_role_list.pop()
+            player.role(role)
             newplayer = self.roles[role](player)
 
             session.players.append(newplayer)
 
-        # cursed vill
+        for i in range(gamemode_roles['cursed villager'] if 'cursed villager' in gamemode_roles.keys() else 0):
+            cursed_choices = [x for x in session.players if x.role not in self.wolf_roles + self.seen_wolf + ['seer'] and x.template.cursed]
+            if cursed_choices:
+                cursed = random.choice(cursed_choices)
+                cursed.template.cursed = True
+                session = self.player_update(session, cursed)
+
         # mayor
         # gunner
         # sharpshooter
@@ -682,7 +698,7 @@ class GameEngine:
 
     def balance_roles(self, session, massive_role_list, default_role='villager', num_players=-1):
         if num_players == -1:
-            num_players = len(session.preplayers)
+            num_players = session.player_count
         extra_players = num_players - len(massive_role_list)
         if extra_players > 0:
             massive_role_list += [default_role] * extra_players
@@ -734,17 +750,32 @@ class GameEngine:
 
 
 
-    def session_update(self, action, session):
+    def session_update(self, action, session, spec = []):
         if action == 'pull':
             return self.bot.sessions[session.id]
         elif action == 'push':
-            self.bot.sessions[sessions.id] = session
-            return session
+            if not spec:
+                self.bot.sessions[sessions.id] = session
+            else:
+                for i in spec:
+                    setattr(self.bot.sessions[session.id], i, getattr(session, i))
+
+            return self.bot.sessions[session.id]
 
     def player_update(self, session, player):
+        session = self.session_update('pull')
         sp = session.players
-        sp[sp.index([x for x in sp if x.id == player.id][0])] = player
+        sp[sp.index(next(x for x in sp if x.id == player.id))] = player
+        session = self.session_update('push', ['_players'])
         return session
+
+    def preplayer_update(self, session, player):
+        session = self.session_update('pull')
+        sp = session.players
+        sp[sp.index(next(x for x in sp if x.id == player.id))] = player
+        session = self.session_update('push', ['_preplayers'])
+        return session
+
 
  
     def player_death(self, session, player, reason, kill_team):
@@ -774,7 +805,7 @@ class GameEngine:
 
         else:
             ingame = 'NOT IN GAME'
-            # remove from list?
+            session.preplayers.pop(session.preplayers.index(player))
 
         # REMOVE PLAYER ROLE
 
@@ -784,7 +815,9 @@ class GameEngine:
 
         # more assassin stuff
 
-        session = self.player_update(session, player)
+        # log
+        if session.in_session and reason != 'game cancel':
+            session = self.player_update(session, player)
         return session
 
     def wolf_kill(self, session, alive_players):
@@ -794,7 +827,7 @@ class GameEngine:
 
         for player in alive_players:
             if player.team == 'wolf' and player.role in self.COMMANDS_FOR_ROLE['kill']:
-                for t in player.targets
+                for t in player.targets:
                     if t in wolf_votes:
                         wolf_votes[t] += 1
                     elif t:
@@ -823,7 +856,7 @@ class GameEngine:
 
         vote_dict = {'abstain' : 0}
         for player in voteable_players:
-            vote_dict[player] = 0
+            vote_dict[player.id] = 0
 
         able_voters = [x for x in able_players if totem_dict[x] == 0]
 
@@ -847,13 +880,13 @@ class GameEngine:
         index = alive_players.index(player)
         return random.choice([alive_players[self.listloop(index - 1)], alive_players[self.listloop(index + 1)]])
 
-    in_session = lambda s: return s.in_session and self.win_condition(s)
+    in_session = lambda s: s.in_session and self.win_condition(s)
 
-    listloop = lambda x, n: return n + x if x < 0 else n - x if x > n else x
+    listloop = lambda x, n: n + x if x < 0 else n - x if x > n else x
 
    
 
-    def lg(self, key, *, args, **kwargs): # phrase translator
+    def lg(self, key, premention = None, *, args, **kwargs): # phrase translator
         ref = self.lang
         choices = ref['phrases'][key]
         text = random.choice(choices)
@@ -866,11 +899,13 @@ class GameEngine:
 
         for role in ref['roles'].values():
             for indicator, word in role.items():
-                text.replace(f'<{role['sg']}|{indicator}>', word)
+                text.replace(f'<{role["sg"]}|{indicator}>', word)
 
         for sg, pl in ref['plurals']:
             text.replace(f'<{sg}|sg>', sg)
             text.replace(f'<{sg}|pl>', pl)
+
+        if premention: text = f"{premention}, {text}"
 
         return text
 
@@ -881,7 +916,8 @@ class GameEngine:
         return self.lang['teams'][team]
 
 
-    pl = lambda x: 'sg' if n == 1 else 'pl'
+    pl = lambda n: 'sg' if n == 1 else 'pl'
+    s = lambda n: '' if n == 1 else 's'
 
     listing = lambda x, c=False: ' and '.join([y for y in [', '.join(x[:-1]) + (',' if len(x[:-1]) > 1 else '')] + [x[-1]] if y]) + ',' if c else ''
 
@@ -912,6 +948,10 @@ class GameEngine:
         member = player.player.user
         if member: return str(member.display_name)
         else: return str(player)
+
+    def find_player(self, session, player_id):
+        try: return session.players[[x.id for x in session.players].index(player_id)]
+        except ValueError: None
 
 
 
