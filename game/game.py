@@ -70,7 +70,7 @@ class Game(commands.Cog, name="Game"):
             session = self.session_update('pull', session)
             self.vote_gamemode(session, gamemode)
 
-    def player_join(self, session, user)
+    def player_join(self, session, user):
         newplayer = Player(user.id, user)
         session = self.session_update('pull', session)
 
@@ -96,7 +96,7 @@ class Game(commands.Cog, name="Game"):
             return self.lg('first_join', name=user.display_name, prefix=BOT_PREFIX)
 
         else:
-            return self.lg('joined_game' name=user.display_name, count=session.player_count)
+            return self.lg('joined_game', name=user.display_name, count=session.player_count)
 
         # add role
 

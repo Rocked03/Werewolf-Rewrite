@@ -1,15 +1,14 @@
-from .role import Role
-from .wolfteam import WolfTeam
+from role import Role
+from wolfteam import WolfTeam
 
 
 class Wolf(WolfTeam):
+	role = 'wolf'
+	description = 'TBA'
+	commands = ['kill']
+
 	def __init__(self, player):
 		super().__init__(player)
-
-		self._role = 'wolf'
-		self._death_role = 'wolf'
-		self._seen_role = 'wolf'
-		self._description = 'TBA'
 
 		self._targets = []
 

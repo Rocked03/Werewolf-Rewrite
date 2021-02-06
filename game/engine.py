@@ -6,6 +6,7 @@ from enum import auto, Enum
 
 from session import Session
 from .roles.roles import roles as roles_list
+from .roles.role import Template, Totems
 
 from config import *
 
@@ -39,14 +40,14 @@ class GameEngine:
         self.bot = bot
 
         self.setup()
-        self.declaration()
         self.rolelists()
+        self.declaration()
 
         self.lang = self.load_language(MESSAGE_LANGUAGE)
         self.gamemodes = self.load_gamemodes()
 
     def setup(self):
-        self.roles = roles_list
+        self.roles_list = roles_list
 
     def declaration(self):
         self.dwarn = DAY_WARNING
@@ -65,12 +66,16 @@ class GameEngine:
         # NEUTRAL_ROLES_ORDERED = ['jester', 'crazed shaman', 'monster', 'piper', 'amnesiac', 'fool', 'vengeful ghost', 'succubus', 'clone', 'lycan', 'turncoat', 'serial killer', 'executioner', 'hot potato']
         # TEMPLATES_ORDERED = ['cursed villager', 'blessed villager', 'gunner', 'sharpshooter', 'mayor', 'assassin', 'bishop']
 
-        self.village_roles = ['seer', 'villager']
-        self.wolf_roles = ['wolf']
-        self.neutral_roles = []
-        self.templates = ['cursed']
+        # self.village_roles = ['seer', 'villager']  # [x for x in self.roles if x.team == 'village']
+        # self.wolf_roles = ['wolf']  # [n for n, o in self.roles.items() if o.team == 'wolf']
+        # self.neutral_roles = []  # [x for x in self.roles if x.team == 'neutral']
+        self.templates = [x for x in dir(Template) if x != ['target', 'seen']]
 
-        self.seen_wolf = ['wolf', 'cursed']
+        # self.seen_wolf = ['wolf', 'cursed']  # [x for x in self.roles if x._seen_role == 'wolf'] + [n for n, r in Template.seen.items() if r == 'wolf']
+
+    def roles(self, team=None):
+        if team is None: return list(self.roles_list.keys())
+        else: return [n for n, o in self.roles_list.items() if o.team == team]
 
 
     def load_language(self, language):
@@ -92,7 +97,7 @@ class GameEngine:
         session.phase(GameState.LOBBY)
 
         self.bot.sessions[session.id] = session
-        self.bot.sessionstask[session.id] {
+        self.bot.sessionstask[session.id] = {
             'wait_bucket': None,
             'wait_timer': None,
             'game_start_timeout_loop': None,
@@ -658,7 +663,7 @@ class GameEngine:
         gamemode_roles = self.get_roles(gm, player_count)
 
         for role, count in gamemode_roles.items():
-            if role in self.roles.keys():
+            if role in self.roles():
                 if role in self.templates:
                     roles_gamemode_template_list += [role] * count
                 else:
@@ -676,12 +681,12 @@ class GameEngine:
         for player in session.preplayers:
             role = massive_role_list.pop()
             player.role(role)
-            newplayer = self.roles[role](player)
+            newplayer = self.roles_list[role](player)
 
             session.players.append(newplayer)
 
         for i in range(gamemode_roles['cursed villager'] if 'cursed villager' in gamemode_roles.keys() else 0):
-            cursed_choices = [x for x in session.players if x.role not in self.wolf_roles + self.seen_wolf + ['seer'] and x.template.cursed]
+            cursed_choices = [x for x in session.players if x.role not in self.roles('wolf') + self.seen_wolf + ['seer'] and x.template.cursed]
             if cursed_choices:
                 cursed = random.choice(cursed_choices)
                 cursed.template.cursed = True
@@ -708,29 +713,29 @@ class GameEngine:
             removed_roles = []
             team_roles = [0, 0, 0]
             for role in massive_role_list:
-                if role in self.wolf_roles:
+                if role in self.roles('wolf'):
                     team_roles[0] += 1
-                elif role in self.village_roles:
+                elif role in self.roles('village'):
                     team_roles[1] += 1
-                elif role in self.neutral_roles:
+                elif role in self.roles('neutral'):
                     team_roles[2] += 1
             for i in range(-1 * extra_players):
                 team_fractions = list(x / len(massive_role_list) for x in team_roles)
                 roles_to_remove = set()
                 if team_fractions[0] > 0.35:
-                    roles_to_remove |= set(self.wolf_roles)
+                    roles_to_remove |= set(self.roles('wolf'))
                 if team_fractions[1] > 0.7:
-                    roles_to_remove |= set(self.village_roles)
+                    roles_to_remove |= set(self.roles('village'))
                 if team_fractions[2] > 0.15:
-                    roles_to_remove |= set(self.neutral_roles)
+                    roles_to_remove |= set(self.roles('neutral'))
                 if len(roles_to_remove) == 0:
                     roles_to_remove = set(roles)
                     if team_fractions[0] < 0.25:
-                        roles_to_remove -= set(self.wolf_roles)
+                        roles_to_remove -= set(self.roles('wolf'))
                     if team_fractions[1] < 0.5:
-                        roles_to_remove -= set(self.village_roles)
+                        roles_to_remove -= set(self.roles('village'))
                     if team_fractions[2] < 0.05:
-                        roles_to_remove -= set(self.neutral_roles)
+                        roles_to_remove -= set(self.roles('neutral'))
                     if len(roles_to_remove) == 0:
                         roles_to_remove = set(roles)
                 for role in massive_role_list[:]:
@@ -928,7 +933,7 @@ class GameEngine:
     def sort_roles(role_list):
         role_list = list(role_list)
         result = []
-        for role in self.wolf_roles + self.village_roles + self.neutral_roles + TEMPLATES_ORDERED:
+        for role in self.roles('wolf') + self.roles('village') + self.roles('neutral') + TEMPLATES_ORDERED:
             result += [role] * role_list.count(role)
         return result
 

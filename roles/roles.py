@@ -4,6 +4,6 @@ from wolf import Wolf
 
 roles = {
 	'villager': Villager,
-	'seer': Seer
+	'seer': Seer,
 	'wolf': Wolf,
 }

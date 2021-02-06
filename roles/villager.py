@@ -1,16 +1,13 @@
-from .role import Role
-from .villageteam import VillageTeam
+from role import Role
+from villageteam import VillageTeam
 
 
 class Villager(VillageTeam):
-	def __init__(self, player):
-		super().__init__(player)
+    role = 'villager'
+    description = 'TBA'
 
-		self._role = 'villager'
-		self._death_role = 'villager'
-		self._seen_role = 'villager'
-		self._description = 'TBA'
+    def __init__(self, player):
+        super().__init__(player)
 
-
-	def night_check(self):
-		return True
+    def night_check(self):
+        return True

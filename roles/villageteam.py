@@ -1,8 +1,8 @@
-from .role import Role
+from role import Role
 
 
 class VillageTeam(Role):
+    team = 'village'
+    
     def __init__(self, player):
-    	super().__init__(player)
-    	
-    	self._team = 'village'
+        super().__init__(player)

@@ -1,14 +1,12 @@
-from .role import Role
+from role import Role
 
 
 class WolfTeam(Role):
+	team = 'wolf'
+	actual_wolf = True
+
     def __init__(self, player):
     	super().__init__(player)
-    	
-    	self._team = 'wolf'
-
-    	self._actual_wolf = False
-
 
     @property
     def actual_wolf(self):
