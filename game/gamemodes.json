@@ -1,20 +1,20 @@
 {
-    'default' : {
-        'name': 'default',
-        'description': "The default gamemode.",
-        'min_players': 4,
-        'max_players': 12,
-        'chance': 30,
-        'roles': {
-            #4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16
-            'wolf': 
-            [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2]
-            'seer': 
+    "default" : {
+        "name": "default",
+        "description": "The default gamemode.",
+        "min_players": 4,
+        "max_players": 12,
+        "chance": 30,
+        "roles": {
+        //   4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16
+            "wolf": 
+            [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2],
+            "seer": 
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
-            'villager': 
+            "villager": 
             [2, 3, 4, 5, 6, 6, 7, 8, 9,10,11,12,12],
  
-            'cursed villager':
+            "cursed":
             [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         } 
     },

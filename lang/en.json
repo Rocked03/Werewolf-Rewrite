@@ -83,6 +83,34 @@
             "The {villagers} choose to hang **{lynched}**; however, the rope stretches and breaks, and the ensuing fall kills them instead."
         ],
 
+        "leave_death": [
+            "**{name}** spontaneously combusted. The air smells of freshly burnt **{role}**.",
+            "While wearing a red triangular hat, **{name}**, a **{role}**, was shot dead by a hunter.",
+            "While wearing a yellow square hat, **{name}**, a **{role}**, was rammed by a tank.",
+            "While wearing a blue pentagonal hat, **{name}**, a **{role}**, was destroyed by a giant cannonball.",
+            "While wearing an oversized blue pentagonal hat, **{name}**, a **{role}**, was annihilated by a humongous mortar shell.",
+            "After jumping into a tank, **{name}** drowned. The fish consumed the dead **{role}**'s body.",
+            "**{name}** mysteriously disappeared in the woods. Nobody knows where the **{role}** went.",
+            "Standing under a tree, **{name}**, a **{role}**, is killed by a falling branch.",
+            "**{name}**, a **{role}**, is killed by lightning before the villagers' eyes. The air smells of burnt flesh.",
+            "Rampaging through the village, a bull gores **{name}**, a **{role}**.",
+            "**{name}**, a **{role}**, falls into a vat of molasses and drowns."
+        ],
+
+        "leave_death_no_reveal": [
+            "**{name}** spontaneously combusted.",
+            "While wearing a red triangular hat, **{name}** was shot dead by a hunter.",
+            "While wearing a yellow square hat, **{name}** was rammed by a tank.",
+            "While wearing a blue pentagonal hat, **{name}** was destroyed by a giant cannonball.",
+            "While wearing an oversized blue pentagonal hat, **{name}** was annihilated by a humongous mortar shell.",
+            "After jumping into a tank, **{name}** drowned. The fish consumed their dead body.",
+            "**{name}** mysteriously disappeared in the woods. Nobody knows where they went.",
+            "Standing under a tree, **{name}** is killed by a falling branch.",
+            "**{name}** is killed by lightning before the villagers' eyes. The air smells of burnt flesh.",
+            "Rampaging through the village, a bull gores **{name}**.",
+            "**{name}** falls into a vat of molasses and drowns."
+        ],
+
 
         "no_win": [
             "Everyone died. The town sits abandoned, collecting dust."
@@ -193,6 +221,26 @@
             "**{name}** didn't get out of bed for a very long time and has been found dead. The survivors bury the **{role}**"
         ],
 
+        "leave_confirm": [
+            "Are you sure you want to quit during game? Doing so will result in {count} games of stasis. You may bypass this confirmation by using `{prefix}leave -force`."
+        ],
+
+        "timed_out": [
+            "Timed out."
+        ],
+
+        "leave_lobby": [
+            "**{name}** left the game. There are now **{count}** players in the lobby.",
+            "**{name}** walked out of the lobby. There are now **{count}** players in the lobby.",
+            "**{name}** was shot twice by a hunter, once in the head and once in the heart. Remaining players: **{count}**",
+            "**{name}** poked a bear in the eye with a stick and has paid the price. Remaining players: **{count}**",
+            "**{name}** was hit by a humongous yellow bullet from a giant yellow tank. The **{count}** remaining players cower in fear."
+        ],
+
+
+        "your_role": [
+            "Your role is {role}. {description}"
+        ],
 
 
         "use_in_channel": [
@@ -258,12 +306,24 @@
             "**{name}** has voted to start the game. **{count}** more vote{pl} needed."
         ],
 
+        "start_vote_count": [
+            "**{player_count}** player{s_pc} in the lobby, **{gamemode_count}** vote{s_gm} required to choose a gamemode, majority votes required to choose whether to reveal roles, **{start_count}** votes needed to start."
+        ],
+
+        "lynch_vote_count": [
+            "**{player_count}** living players, **{vote_count}** votes required to lynch, **{voteable_count}** players available to vote, **{abstain_count}** player{s_abs} refrained from voting."
+        ],
+
         "lynch_vote": [
             "You have voted to lynch **{name}**!"
         ],
 
         "no_vote": [
             "You have no vote to retract! To vote, type `{prefix}vote`!"
+        ],
+
+        "no_votes_yet": [
+            "No one has cast a vote yet. Do `{prefix}lynch <player>` in {channel} to lynch <player>. "
         ],
 
         "retract_vote": [
@@ -281,6 +341,19 @@
         "abstain": [
             "**{name}** votes to not lynch anyone today."
         ],
+
+        "role_dm_off": [
+            "{mention}, Please make sure you have enabled `Allow direct messages from server members` under Privacy Settings for this server so I can DM your role. After that, you may use the command `{prefix}myrole` to resend your role."
+        ],
+
+
+        "confirm_yes": [
+            "yes", "y"
+        ],
+
+        "gamemode_boundaries": [
+            "Please select a player count within the boundaries of the gamemode's minimum and maximum player count."
+        ],
     },
 
 
@@ -293,12 +366,19 @@
     "roles": {
         "villager": {
             "sg": "villager",
-            "pl": "villagers"
+            "pl": "villagers",
+            "desc": "TBA"
         },
         "wolf": {
             "sg": "wolf",
-            "pl": "wolves"
+            "pl": "wolves",
+            "desc": "TBA"
         },
+
+        "cursed": {
+            "sg": "cursed",
+            "desc": "TBA"
+        }
     },
 
 

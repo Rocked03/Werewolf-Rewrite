@@ -4,7 +4,6 @@ from wolfteam import WolfTeam
 
 class Wolf(WolfTeam):
 	role = 'wolf'
-	description = 'TBA'
 	commands = ['kill']
 
 	def __init__(self, player):

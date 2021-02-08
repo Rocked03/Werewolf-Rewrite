@@ -55,16 +55,16 @@ class GameEngine:
         self.nwarn = NIGHT_WARNING
         self.ntmout = NIGHT_TIMEOUT
 
-        self.COMMANDS_FOR_ROLE = {
-            'see' : ['seer'],
-            'kill' : ['wolf'],
-        }
+        # self.COMMANDS_FOR_ROLE = {
+        #     'see' : ['seer'],
+        #     'kill' : ['wolf'],
+        # }
 
     def rolelists(self):
         # VILLAGE_ROLES_ORDERED = ['seer', 'oracle', 'shaman', 'harlot', 'hunter', 'augur', 'detective', 'matchmaker', 'guardian angel', 'bodyguard', 'priest', 'village drunk', 'mystic', 'mad scientist', 'time lord', 'villager']
         # WOLF_ROLES_ORDERED = ['wolf', 'werecrow', 'doomsayer', 'wolf cub', 'werekitten', 'wolf shaman', 'wolf mystic', 'traitor', 'hag', 'sorcerer', 'warlock', 'minion', 'cultist']
         # NEUTRAL_ROLES_ORDERED = ['jester', 'crazed shaman', 'monster', 'piper', 'amnesiac', 'fool', 'vengeful ghost', 'succubus', 'clone', 'lycan', 'turncoat', 'serial killer', 'executioner', 'hot potato']
-        # TEMPLATES_ORDERED = ['cursed villager', 'blessed villager', 'gunner', 'sharpshooter', 'mayor', 'assassin', 'bishop']
+        # TEMPLATES_ORDERED = ['cursed', 'blessed villager', 'gunner', 'sharpshooter', 'mayor', 'assassin', 'bishop']
 
         # self.village_roles = ['seer', 'villager']  # [x for x in self.roles if x.team == 'village']
         # self.wolf_roles = ['wolf']  # [n for n, o in self.roles.items() if o.team == 'wolf']
@@ -255,10 +255,20 @@ class GameEngine:
     async def sunset(self, session, when):
         if when == 'pre-night':
             session.night_start(datetime.utcnow())
-
             session.num_kills(1)
-            for player in session.players: # Totems
-                pass
+
+            for player in session.players:
+                # totems
+
+                role_msg, info_msg = self.send_role_info(session, player)
+                if info_msg:
+                    try:
+                        if session.night_count == 0: await player.send(role_msg)
+                        await player.send(info_msg)
+                    except discord.Forbidden:
+                        await session.send(self.lg('role_dm_off', mention=player.mention))
+
+            # log
 
         elif when == 'post-day':
             session.set_night()
@@ -274,7 +284,7 @@ class GameEngine:
 
                     player.vote = None
 
-                    if player.team == 'wolf' and player.role in self.COMMANDS_FOR_ROLE['kill']:
+                    if player.team == 'wolf' and 'kill' in player.role.commands:
                         player.targets = []
 
                     # amnesia stuff
@@ -313,7 +323,7 @@ class GameEngine:
         end_night = True
         for player in session.players:
             if player.alive:
-                if player.team == 'wolf' and player.role in self.COMMANDS_FOR_ROLE['kill']:
+                if player.team == 'wolf' and 'kill' in player.role.commands:
                     num_wolves += 1
                     num_kills = 1
                     for t in player.targets:
@@ -409,7 +419,7 @@ class GameEngine:
             for player in session.players: # more totem stuff
                 pass
 
-            await session.send(self.lg('now_daytime', prefix=BOT_PREFIX))
+            await session.send(self.lg('now_daytime'))
 
         for player in session.players: # blindness, illness, doomsayer
             pass
@@ -685,7 +695,7 @@ class GameEngine:
 
             session.players.append(newplayer)
 
-        for i in range(gamemode_roles['cursed villager'] if 'cursed villager' in gamemode_roles.keys() else 0):
+        for i in range(gamemode_roles['cursed'] if 'cursed' in gamemode_roles.keys() else 0):
             cursed_choices = [x for x in session.players if x.role not in self.roles('wolf') + self.seen_wolf + ['seer'] and x.template.cursed]
             if cursed_choices:
                 cursed = random.choice(cursed_choices)
@@ -768,17 +778,17 @@ class GameEngine:
             return self.bot.sessions[session.id]
 
     def player_update(self, session, player):
-        session = self.session_update('pull')
+        session = self.session_update('pull', session)
         sp = session.players
         sp[sp.index(next(x for x in sp if x.id == player.id))] = player
-        session = self.session_update('push', ['_players'])
+        session = self.session_update('push', session, ['_players'])
         return session
 
     def preplayer_update(self, session, player):
-        session = self.session_update('pull')
+        session = self.session_update('pull', session)
         sp = session.players
         sp[sp.index(next(x for x in sp if x.id == player.id))] = player
-        session = self.session_update('push', ['_preplayers'])
+        session = self.session_update('push', session, ['_preplayers'])
         return session
 
 
@@ -831,7 +841,7 @@ class GameEngine:
         wolf_deaths = []
 
         for player in alive_players:
-            if player.team == 'wolf' and player.role in self.COMMANDS_FOR_ROLE['kill']:
+            if player.team == 'wolf' and 'kill' in player.role.commands:
                 for t in player.targets:
                     if t in wolf_votes:
                         wolf_votes[t] += 1
@@ -850,6 +860,56 @@ class GameEngine:
         return wolf_deaths
 
    
+    def send_role_info(self, session, player):
+        if player.alive:
+            rolename = player.role if player.role not in [] else 'villager'
+            role = self.roles_list[rolename]
+            role = player.role if player.role not in [] else self.roles_list['villager']
+            templates = player.template
+
+            role_msg = self.lg('your_role', role=self.lgr(role.name), description=self.lgr(role.name, 'desc'))
+
+            msg = []
+            living_players = [x for x in session.players if x.alive]
+            living_players_string = [f"{self.get_name(x)} ({x.id})" for x in living_players]
+
+            if player.team == 'wolf':
+                living_players_string = []
+                for player in living_players:
+                    role_string = []
+
+                    if player.template.cursed:
+                        role_string.append(self.lgr('cursed'))
+                    if player.team == 'wolf' and player.role not in []:
+                        role_string.append(self.lgr(player.role))
+
+                    rs = f' ({" ".join(role_string)})' if role_string else ''
+                    living_players_string.append(f"{self.get_name(player)} ({player.id}){rs}")
+
+            # succubus
+            # piper
+            # executioner
+            # shaman
+            # clone
+
+            if player.role.commands:
+                lps = '\n'.join(living_players_string)
+                msg.append(f"Living players:\n```basic\n{lps}```")
+
+            # mystic
+            # wolf mystic
+            # turncoat
+            # gunner
+            # sharpshooter
+            # assassin
+            # matchmaker
+            # minion
+
+            return role_msg, '\n'.join(msg)
+
+        elif False:
+            return '', ''  # vengeful ghost
+
     def get_votes(self, session):
         totem_dict = {}
         # for player in session.players:
@@ -899,8 +959,9 @@ class GameEngine:
 
         kwargs['villagers'] = self.lgr('villager', 'pl')
         kwargs['wolves'] = self.lgr('wolf', 'pl')
+        kwargs['prefix'] = BOT_PREFIX
 
-        text = text.format(*args, **kwargs)
+        text = text.format(*args, **{k:v for k, v in kwargs if f'{{{k}}}' in text})
 
         for role in ref['roles'].values():
             for indicator, word in role.items():
@@ -933,7 +994,7 @@ class GameEngine:
     def sort_roles(role_list):
         role_list = list(role_list)
         result = []
-        for role in self.roles('wolf') + self.roles('village') + self.roles('neutral') + TEMPLATES_ORDERED:
+        for role in self.roles('wolf') + self.roles('village') + self.roles('neutral') + self.templates:
             result += [role] * role_list.count(role)
         return result
 

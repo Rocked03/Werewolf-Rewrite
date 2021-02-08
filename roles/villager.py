@@ -4,7 +4,7 @@ from villageteam import VillageTeam
 
 class Villager(VillageTeam):
     role = 'villager'
-    description = 'TBA'
+    commands = []
 
     def __init__(self, player):
         super().__init__(player)

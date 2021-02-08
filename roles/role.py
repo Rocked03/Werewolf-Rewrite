@@ -1,6 +1,5 @@
 class Role:
     role = None
-    description = None
     team = None
     commands = []
 
