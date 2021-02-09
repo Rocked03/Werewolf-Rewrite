@@ -12,12 +12,13 @@ from .config import *
 # kill
 # see
 # wolfchat
-# leave server
-# stats
 # force commands (stop, day/night, join, start, target, role, gamemode)
 # temp testing bots
 # command descriptions
 # ---- other non priority
+# logs
+# roles/perms
+# revealroles
 # more roles
 # notify
 # stasis
@@ -45,6 +46,7 @@ class Game(commands.Cog, name="Game"):
 
         self.roles_list = self.engine.roles_list
         self.roles = self.engine.roles
+        self.templates = self.engine.templates
         self.gamemodes = self.engine.gamemodes
 
         self.bot.sessions = {}
@@ -56,6 +58,30 @@ class Game(commands.Cog, name="Game"):
             'reveal': ['reveal', 'rev', 'rvl' 'r'],
             'noreveal': ['noreveal', 'norev', 'norvl', 'nrvl', 'nr']
         }
+
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if message.channel.is_private:
+            # log
+
+            if message.content.startswith(BOT_PREFIX):
+                return await bot.process_commands(message)
+
+            if message.content.split(' ')[0] in [x for c in bot.commands for x in [c.name] + c.aliases]:
+                newmsg = copy.copy(message)
+                newmsg.content = BOT_PREFIX + newmsg.content
+                await bot.process_commands(newmsg)
+
+            session = self.find_session_player(ctx.author.id)
+            if not session: return await bot.process_commands(message)
+
+            player = self.get_player(session, message.author.id)
+            if session.in_session and player.alive and player.role in self.roles('wolfchat'):
+                if not message.content.startswith(BOT_PREFIX): await self.wolfchat(session, message)
+            else: await bot.process_commands(message)
+
+        await bot.process_commands(message)
 
 
     @commands.command(aliases=['j'])
@@ -143,26 +169,45 @@ class Game(commands.Cog, name="Game"):
 
             return await ctx.reply(msg)
 
-    def player_leave(self, session, player):
-        if session.reveal:
-            msg = self.lg('leave_death', name=self.get_name(player), role=player.death_role)
-        else:
-            msg = self.lg('leave_death_no_reveal', name=self.get_name(player))
+    def player_leave(self, session, player, reason='leave'):
+        if reason == 'leave': msgtype = 'leave_death'
+        elif reason == 'fleave': msgtype = 'guild_leave_death'
 
-        session = self.player_death(session, player, 'leave', 'bot')
+        if session.reveal:
+            msg = self.lg(msgtype, name=self.get_name(player), role=player.death_role)
+        else:
+            msg = self.lg(msgtype + '_no_reveal', name=self.get_name(player))
+
+        session = self.player_death(session, player, reason, 'bot')
 
         # STASIS
-
         # TRAITOR
-
         # log
 
         return session, msg
 
-    def preplayer_leave(self, session, player):
+    def preplayer_leave(self, session, player, reason='leave'):
         session = self.player_death(session, player, 'leave', 'bot')
+        msgtype = 'leave_lobby' if reason == 'leave' else 'guild_leave_lobby'
         msg = self.lg('leave_lobby', name=self.get_name(player), count=session.player_count)
+        # log
         return session, msg
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        session = self.find_session_player(member.id)
+        if not session: return
+
+        if session.in_session:
+            player = self.find_player(session, member.id)
+            if player.alive:
+                session, msg = self.player_leave(session, player, 'fleave')
+
+        else:
+            player = self.find_preplayer(session, member.id)
+            session, msg = self.preplayer_leave(session, player, 'fleave')
+
+        return await session.send(msg)
 
 
     @commands.command(aliases=['v'])
@@ -310,6 +355,74 @@ class Game(commands.Cog, name="Game"):
 
             return await ctx.reply('\n'.join(msg))
 
+    @commands.command()
+    async def stats(self, ctx):
+        session = self.find_session_channel(ctx.channel.id)
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
+
+        if not session.in_session:
+            if session.player_count == 0:
+                return await ctx.reply(self.lg('no_session_channel_join'))
+            else:
+                return await ctx.reply(self.lg('lobby_count',
+                    count=session.player_count,
+                    players='\n'.join(p.user.display_name for p in session.preplayers)
+                ))
+
+        else:
+            msg = self.stats_msg(session)
+            return await ctx.reply(msg)
+
+    def stats_msg(self, session):
+        msg = [self.lg('stats_info', daynight='day' if session.day else 'night', gamemode=session.gamemode)]
+        msg.append(self.lg('stats_player_count',
+            count=session.player_count,
+            alive=len(x for x in session.players if x.alive),
+            dead=len(x for x in session.players if not x.alive)
+        ))
+        msg.append(self.lg('stats_players',
+            alive='\n'.join(f"{self.get_name(x)} ({x.id})" for x in session.players if x.alive),
+            dead='\n'.join(f"{self.get_name(x)} ({x.id})" for x in session.players if not x.alive)
+        ))
+
+
+        orig_roles = dict(session.original_roles_amount)
+        # traitor stuff
+
+        role_dict = {x.name: [0, 0] for x in self.roles_list}
+        for player in session.players:
+            role = player.role
+            role_dict[role][0] += 1
+            role_dict[role][1] += 1
+
+        msg.append("Total roles: " + ', '.join(f"{name}: {count}" for name, count in self.sort_roles(orig_roles).items()))
+
+        if session.reveal:
+            for role in list(role_dict):
+                if role in self.templates:
+                    del role_dict[role]
+
+            # traitor
+
+            for player in session.players:
+                if not player.alive:
+                    reveal = player.death_role
+                    role_dict[reveal][0] = max(0, role_dict[reveal][0] - 1)
+                    role_dict[reveal][1] = max(0, role_dict[reveal][1] - 1)
+
+            # clone
+            # amnesiac and executioner
+
+            for template in self.templates:
+                if template in orig_roles:
+                    del orig_roles[template]
+
+            msg.append("Current roles: " + ', '.join(f"{self.lgr(role, 'sg' if count == 1 else 'pl')}: {count[0] if count[0] == count[1] else f'{count[0]}-{count[1]}'}" for role, count in role_dict))
+
+        msg.append('```')
+
+        return '\n'.join(msg)
+
 
     @commands.command()
     async def start(self, ctx):
@@ -352,6 +465,10 @@ class Game(commands.Cog, name="Game"):
         if votes == 1:
             sessiontasks = self.bot.sessiontasks[session.id]
             sessiontasks['start_votes_loop'] = self.bot.loop.create_task(self.start_votes_loop(session))
+
+
+    async def wolfchat(self, session, msg):
+        pass
 
 
     @commands.command()

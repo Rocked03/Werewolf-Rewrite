@@ -10,8 +10,9 @@ from discord.ext import commands
 
 from config import *
 
-
-bot = commands.Bot(command_prefix=BOT_PREFIX, description='Werewolf')
+intents = discord.Intents.default()
+intents.messages = True
+bot = commands.Bot(command_prefix=BOT_PREFIX, description='Werewolf', intents=intents)
 
 
 initial_extensions = [

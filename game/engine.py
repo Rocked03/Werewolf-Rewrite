@@ -75,6 +75,7 @@ class GameEngine:
 
     def roles(self, team=None):
         if team is None: return list(self.roles_list.keys())
+        elif team == 'wolfchat': return [n for n, o in self.roles_list.items() if o.team == 'wolf' and o.wolfchat]
         else: return [n for n, o in self.roles_list.items() if o.team == team]
 
 
@@ -683,7 +684,7 @@ class GameEngine:
         if debug_message:
             pass # log stuff
 
-        session.original_roles_amount(dict(gamemode_roles))
+        session.original_roles_amount({k.role: v for k, v in gamemode_roles.items()})
 
 
         random.shuffle(massive_role_list)
@@ -821,6 +822,7 @@ class GameEngine:
         else:
             ingame = 'NOT IN GAME'
             session.preplayers.pop(session.preplayers.index(player))
+            session.player_ids.pop(session.player_ids.index(player.id))
 
         # REMOVE PLAYER ROLE
 

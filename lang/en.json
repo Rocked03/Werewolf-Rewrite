@@ -111,6 +111,14 @@
             "**{name}** falls into a vat of molasses and drowns."
         ],
 
+        "guild_leave_death": [
+            "**{name}** left the server. Farewell **{role}**."
+        ],
+
+        "guild_leave_death_no_reveal": [
+            "**{name}** left the server. Farewell."
+        ],
+
 
         "no_win": [
             "Everyone died. The town sits abandoned, collecting dust."
@@ -178,11 +186,15 @@
             "There doesn't appear to be a game running in this channel!"
         ],
 
+        "no_session_channel_join": [
+            "There is currently no active game in this channel. Try {prefix}join to start a new game!"
+        ],
+
         "no_session_user": [
             "You don't seem to be in any game! To join a game, type `{prefix}join` in a game channel."
         ],
 
-        "alreadyin": [
+        "already_in": [
             "You are already playing!",
             "You are already in!"
         ],
@@ -235,6 +247,14 @@
             "**{name}** was shot twice by a hunter, once in the head and once in the heart. Remaining players: **{count}**",
             "**{name}** poked a bear in the eye with a stick and has paid the price. Remaining players: **{count}**",
             "**{name}** was hit by a humongous yellow bullet from a giant yellow tank. The **{count}** remaining players cower in fear."
+        ],
+
+        "guild_leave_lobby": [
+            "**{name}** left the server. Farewell.\nNew player count: **{count}**"
+        ],
+
+        "lobby_count": [
+            "{count} players in lobby: ```\n{players}\n```"
         ],
 
 
@@ -353,6 +373,18 @@
 
         "gamemode_boundaries": [
             "Please select a player count within the boundaries of the gamemode's minimum and maximum player count."
+        ],
+
+        "stats_info": [
+            "It is now **{daynight}time**. Using the **{gamemode}** gamemode."
+        ],
+
+        "stats_player_count": [
+            "**{count}** players playing: **{alive}** alive, **{dead}** dead."
+        ],
+
+        "stats_players": [
+            "```basic\nLiving players:\n{alive}\nDead players:\n{dead}\n"
         ],
     },
 
