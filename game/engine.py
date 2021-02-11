@@ -252,6 +252,8 @@ class GameEngine:
                 end_stats=end_stats
             )
 
+        session = self.session_setup(session.channel)
+
 
     async def sunset(self, session, when):
         if when == 'pre-night':
@@ -582,7 +584,6 @@ class GameEngine:
         # unlock lobby
 
         return session
-
 
 
     def win_condition(self, session):

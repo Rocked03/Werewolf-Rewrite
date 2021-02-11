@@ -65,7 +65,6 @@ class Game(commands.Cog, name="Game"):
         self.randomword = lambda: (' '.join(self.rw.word(include_parts_of_speech=[x], word_max_length=8) for x in ['adjectives', 'nouns'])).title()
 
 
-
     def admin():
         def predicate(ctx):
             if ctx.guild and ctx.guild.id == WEREWOLF_SERVER_ID:
@@ -74,6 +73,39 @@ class Game(commands.Cog, name="Game"):
                 roles = ctx.bot.get_guild(WEREWOLF_SERVER_ID).get_member(ctx.author.id).roles
             return any(x in ADMINS_ROLE_ID for x in roles)
         return commands.check(predicate)
+
+
+    @commands.command(aliases=['initsession'])
+    @admin()
+    async def initiatesession(self, ctx, channel: commands.TextChannelConverter = None):
+        if channel is None: channel = ctx.channel
+        session = self.find_session_channel(channel.id)
+        if session: return await ctx.reply(self.lg('session_already_exists'))
+
+        self.engine.session_setup(channel)
+        await ctx.reply(self.lg('session_init', channel=channel.mention, channelid=channel.id))
+        # log
+
+    @commands.command()
+    @admin()
+    async def destroysession(self, ctx, channel: commands.TextChannelConverter = None):
+        if channel is None: channel = ctx.channel
+        session = self.find_session_channel(channel.id)
+        if session is None: return await ctx.reply(self.lg('no_session_channel'))
+
+        message = await ctx.reply(self.lg('session_destroy_check'))
+        check = lambda m: m.author.id == ctx.author.id and m.channel.id == ctx.channel.id
+        try: msg = await self.bot.wait_for('on_message', timeout=5, check=check)
+        except asyncio.TimeoutError: msg = None
+        else: msg = None if msg.content.lower() not in self.engine.lang['phrases']['confirm_yes'] else msg
+
+        if msg is None:
+            return await message.edit(content=self.lg('timed_out'))
+
+        self.bot.sessions.pop(session.id)
+
+        await ctx.reply(self.lg('session_destroyed', sessionid=channel.id))
+        # log
 
 
     @commands.Cog.listener()
@@ -190,7 +222,7 @@ class Game(commands.Cog, name="Game"):
                 check = lambda m: m.author.id == ctx.author.id and m.channel.id == ctx.channel.id
                 try: msg = await self.bot.wait_for('on_message', timeout=5, check=check)
                 except asyncio.TimeoutError: msg = None
-                else: msg = None if msg.content.lower() not in self.lg('confirm_yes') else msg
+                else: msg = None if msg.content.lower() not in self.engine.lang['phrases']['confirm_yes'] else msg
 
                 if msg is None:
                     return await message.edit(content=self.lg('timed_out'))
@@ -880,7 +912,7 @@ class Game(commands.Cog, name="Game"):
             session = self.find_session_channel(ctx.channel.id)
             if targets is not None: targets = [session] + targets
             else: targets = session
-        if not session: return await ctx.reply(self.lg('no_session'))
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         for t in targets:
             msg = self.player_join(session, t)
@@ -893,7 +925,7 @@ class Game(commands.Cog, name="Game"):
             session = self.find_session_channel(ctx.channel.id)
             if targets is not None: targets = [session] + targets
             else: targets = session
-        if not session: return await ctx.reply(self.lg('no_session'))
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         if not session.in_session:
             for t in targets:
@@ -927,7 +959,7 @@ class Game(commands.Cog, name="Game"):
     async def start(self, ctx, session: int = None):
         if session is not None: session = self.find_session_channel(session)
         else: session = self.find_session_channel(ctx.channel.id)
-        if not session: return await ctx.reply(self.lg('no_session'))
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         if session.in_session: return await ctx.reply("The game is already in session!")
 
@@ -939,7 +971,7 @@ class Game(commands.Cog, name="Game"):
     async def stop(self, ctx, session: int = None):
         if session is not None: session = self.find_session_channel(session)
         else: session = self.find_session_channel(ctx.channel.id)
-        if not session: return await ctx.reply(self.lg('no_session'))
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         if not session.in_session: return await ctx.reply("The game not yet in session!")
 
@@ -955,7 +987,7 @@ class Game(commands.Cog, name="Game"):
             session = self.find_session_channel(ctx.channel.id)
             if time is not None: time = ' '.join([session, time])
             else: time = session
-        if not session: return await ctx.reply(self.lg('no_session'))
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         time = time.lower()
         if time not in ['day', 'night']:
@@ -978,7 +1010,7 @@ class Game(commands.Cog, name="Game"):
             session = self.find_session_channel(ctx.channel.id)
             if targets is not None: targets = [session] + targets
             else: targets = session
-        if not session: return await ctx.reply(self.lg('no_session'))
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         if len(targets) < 2: return await ctx.reply("Please specify at least two users - the targeter and the targeted player(s).")
 
@@ -1011,7 +1043,7 @@ class Game(commands.Cog, name="Game"):
             session = self.find_session_channel(ctx.channel.id)
             if targets is not None: targets = [session] + targets
             else: targets = session
-        if not session: return await ctx.reply(self.lg('no_session'))
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         if not session.in_session: return await ctx.reply("Please wait until the game is in session")
 
@@ -1042,7 +1074,7 @@ class Game(commands.Cog, name="Game"):
             session = self.find_session_channel(ctx.channel.id)
             if targets is not None: targets = [session] + targets
             else: targets = session
-        if not session: return await ctx.reply(self.lg('no_session'))
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         if not session.in_session: return await ctx.reply("Please wait until the game is in session")
 
@@ -1069,7 +1101,7 @@ class Game(commands.Cog, name="Game"):
             session = self.find_session_channel(ctx.channel.id)
             if mode is not None: mode = [session] + mode
             else: mode = session
-        if not session: return await ctx.reply(self.lg('no_session'))
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         if session.in_session: return await ctx.reply("The game is already in session!")
 
@@ -1090,7 +1122,7 @@ class Game(commands.Cog, name="Game"):
             session = self.find_session_channel(ctx.channel.id)
             if mode is not None: mode = [session] + mode
             else: mode = session
-        if not session: return await ctx.reply(self.lg('no_session'))
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         if session.in_session: return await ctx.reply("The game is already in session!")
 

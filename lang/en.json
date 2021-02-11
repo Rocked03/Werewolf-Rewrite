@@ -198,6 +198,22 @@
             "The game is currently not in session!"
         ],
 
+        "session_already_exists": [
+            "A session already exists in this channel!"
+        ],
+
+        "session_init": [
+            "A session has been initiated in {channel} ({channelid})"
+        ],
+
+        "session_destory_check": [
+            "Are you sure you want to destory the session? If you do, many things may break."
+        ],
+
+        "session_destroyed": [
+            "The session ({sessionid}) has been destroyed."
+        ],
+
         "already_in": [
             "You are already playing!",
             "You are already in!"
@@ -242,7 +258,7 @@
         ],
 
         "timed_out": [
-            "Timed out."
+            "Timed out / Declined."
         ],
 
         "leave_lobby": [
