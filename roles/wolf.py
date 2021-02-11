@@ -11,9 +11,8 @@ class Wolf(WolfTeam):
 
 		self._targets = []
 
-
-	def night_check(self):
-		return True
+	def sunset_reset(self):
+		self._targets = []
 
 
 	@property

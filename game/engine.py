@@ -285,8 +285,9 @@ class GameEngine:
 
                     player.vote = None
 
-                    if player.team == 'wolf' and 'kill' in player.role.commands:
-                        player.targets = []
+                    # if player.team == 'wolf' and 'kill' in player.role.commands:
+                    #     player.targets = []
+                    player.sunset_reset()
 
                     # amnesia stuff
 
@@ -950,7 +951,6 @@ class GameEngine:
     in_session = lambda s: s.in_session and self.win_condition(s)
 
     listloop = lambda x, n: n + x if x < 0 else n - x if x > n else x
-
    
 
     def lg(self, key, premention = None, *, args, **kwargs): # phrase translator
@@ -986,6 +986,7 @@ class GameEngine:
 
     pl = lambda n: 'sg' if n == 1 else 'pl'
     s = lambda n: '' if n == 1 else 's'
+    a = lambda x: 'an' if any(x.lower().startswith(y) for y in ['a', 'e', 'i', 'o', 'u']) else 'a'
 
     listing = lambda x, c=False: ' and '.join([y for y in [', '.join(x[:-1]) + (',' if len(x[:-1]) > 1 else '')] + [x[-1]] if y]) + ',' if c else ''
 

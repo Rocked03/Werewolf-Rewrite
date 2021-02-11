@@ -15,6 +15,9 @@ class Seer(VillageTeam):
     def night_check(self):
         return self._target is not None
 
+    def sunset_reset(self):
+        self._target = None
+
 
     @property
     def targets(self):

@@ -8,6 +8,3 @@ class Villager(VillageTeam):
 
     def __init__(self, player):
         super().__init__(player)
-
-    def night_check(self):
-        return True

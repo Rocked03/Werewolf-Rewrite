@@ -1,30 +1,30 @@
 import difflib
 from datetime import datetime, timedelta
 from discord.ext import commands
+import typing
+from wonderwords import RandomWord # pip wonderwords
 
 from engine import GameEngine
-from .roles.player import Player
+from .roles.player import Player, Bot
 
 from .config import *
+from .settings import *
 
 
 # TODO MUST
-# kill
-# see
-# wolfchat
-# force commands (stop, day/night, join, start, target, role, gamemode)
-# temp testing bots
-# command descriptions
+# revealroles
 # ---- other non priority
+# time
 # logs
 # roles/perms
-# revealroles
+# command descriptions
 # more roles
 # notify
 # stasis
 # clean up command checks (single function?)
 # nicer message formats (eg embeds and stuff)
 # command aliases
+
 
 
 
@@ -42,7 +42,9 @@ class Game(commands.Cog, name="Game"):
 
         self.pl = self.engine.pl
         self.s = self.engine.s
+        self.a = self.engine.a
         self.get_name = self.engine.get_name
+        self.listing = self.engine.listing
 
         self.roles_list = self.engine.roles_list
         self.roles = self.engine.roles
@@ -59,10 +61,26 @@ class Game(commands.Cog, name="Game"):
             'noreveal': ['noreveal', 'norev', 'norvl', 'nrvl', 'nr']
         }
 
+        self.rw = RandomWord()
+        self.randomword = lambda: (' '.join(self.rw.word(include_parts_of_speech=[x], word_max_length=8) for x in ['adjectives', 'nouns'])).title()
+
+
+
+    def admin():
+        def predicate(ctx):
+            if ctx.guild and ctx.guild.id == WEREWOLF_SERVER_ID:
+                roles = ctx.author.roles
+            else:
+                roles = ctx.bot.get_guild(WEREWOLF_SERVER_ID).get_member(ctx.author.id).roles
+            return any(x in ADMINS_ROLE_ID for x in roles)
+        return commands.check(predicate)
+
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.channel.is_private:
+        if message.author.id == self.bot.user.id: return
+
+        if not message.guild:
             # log
 
             if message.content.startswith(BOT_PREFIX):
@@ -122,16 +140,39 @@ class Game(commands.Cog, name="Game"):
             sessiontasks['game_start_timeout_loop'] = self.bot.loop.create_task(self.game_start_timeout_loop(session))
             sessiontasks['wait_timer_loop'] = self.bot.loop.create_task(self.wait_timeout_loop(session))
             # lobby status waiting to start
-            return self.lg('first_join', name=user.display_name)
+            msg = self.lg('first_join', name=user.display_name)
 
         else:
-            return self.lg('joined_game', name=user.display_name, count=session.player_count)
+            msg = self.lg('joined_game', name=user.display_name, count=session.player_count)
 
         # add role
 
         sessiontasks = self.bot.sessiontasks[session.id]
         sessiontasks['wait_timer'] = datetime.utcnow() + timedelta(seconds=WAIT_AFTER_JOIN)
         sessiontasks['idle'][user.id] = self.bot.loop.create_task(self.player_idle(session, user.id))
+
+        # log
+
+        return msg
+
+    @commands.command()
+    @admin()
+    async def botjoin(self, ctx):
+        session = self.find_session_channel(ctx.channel.id)
+        if not session: return await ctx.reply(self.lg('no_session'))
+
+        bot_dm_channel = self.bot.get_channel(ctx.channel.id)
+
+        pseudouser = Bot(
+            _id=ctx.message.id,
+            _name=self.randomword(),
+            _discriminator='0000',
+            _channel=bot_dm_channel
+        )
+
+        msg = self.player_join(session, pseudouser)
+        await ctx.reply(msg)
+        await ctx.reply(f"Added pseudouser: {pseudouser.mention} ({pseudouser.id})")
 
 
     @commands.command(aliases=['quit', 'q'])
@@ -143,7 +184,7 @@ class Game(commands.Cog, name="Game"):
             player = self.get_player(session, ctx.author.id)
             if not player.alive: return
 
-            if force == '-force':
+            if force != '-force':
                 message = await ctx.reply(self.lg('leave_confirm', count='something'))
 
                 check = lambda m: m.author.id == ctx.author.id and m.channel.id == ctx.channel.id
@@ -164,7 +205,7 @@ class Game(commands.Cog, name="Game"):
 
         else:
             session = self.session_update('pull', session)
-            session, msg = self.player_leave(session, self.get_preplayer(session, ctx.author.id))
+            session, msg = self.preplayer_leave(session, self.get_preplayer(session, ctx.author.id))
             session = self.preplayer_update(session, self.get_player(session, ctx.author.id))
 
             return await ctx.reply(msg)
@@ -468,7 +509,13 @@ class Game(commands.Cog, name="Game"):
 
 
     async def wolfchat(self, session, msg):
-        pass
+        player = self.find_player(session, msg.author.id)
+        for wolf in [x for x in session.players if x.team == 'wolf' and x.wolfchat]:
+            if wolf.id == player.id: continue
+            try:
+                await wolf.send(f"**[{self.lg('wolfchat').capitalize()}] {self.get_name(player)}**: {msg.content}")
+            except discord.Forbidden:
+                await player.send(self.lg('wolfchat_no_dm', player=self.get_name(wolf), wolfchat=self.lg('wolfchat')))
 
 
     @commands.command()
@@ -476,7 +523,7 @@ class Game(commands.Cog, name="Game"):
         session = self.find_session_player(ctx.author.id)
         if not session: return await ctx.reply(self.lg('no_session_user'))
 
-        if ctx.channel.id != session.id and not ctx.channel.is_private:
+        if ctx.channel.id != session.id and ctx.guild:
             return
 
         player = self.get_player(session, ctx.author.id)
@@ -580,7 +627,7 @@ class Game(commands.Cog, name="Game"):
         session = self.find_session_player(ctx.author.id)
         if not session: return
 
-        if ctx.channel.is_private:
+        if not ctx.guild:
             return await self.use_in_channel(session, ctx)
         if session.channel.id != ctx.channel.id: return
 
@@ -623,7 +670,7 @@ class Game(commands.Cog, name="Game"):
         if not session.in_session:
             player = self.find_preplayer(session, ctx.author.id)
 
-            if ctx.channel.is_private:
+            if not ctx.guild:
                 return await ctx.reply(self.lg('use_in_channel', command=ctx.invoked_with, channel=session.mention))
             if session.channel.id != ctx.channel.id: return
 
@@ -643,7 +690,7 @@ class Game(commands.Cog, name="Game"):
             if not player.alive: return
 
             if session.day:
-                if ctx.channel.is_private:
+                if not ctx.guild:
                     return await self.use_in_channel(session, ctx)
 
                 player.vote = None
@@ -653,7 +700,7 @@ class Game(commands.Cog, name="Game"):
 
             else:
                 if player.role in self.COMMANDS_FOR_ROLE['kill']:
-                    if not ctx.channel.is_private:
+                    if ctx.guild:
                         try:
                             return await player.user.send(self.lg('use_in_dm', command=ctx.invoked_with))
                         except discord.Forbidden:
@@ -678,7 +725,7 @@ class Game(commands.Cog, name="Game"):
         player = self.get_player(session, ctx.author.id)
         if not player.alive: return
 
-        if ctx.channel.is_private:
+        if not ctx.guild:
             return await self.use_in_channel(session, ctx)
         if session.channel.id != ctx.channel.id: return
 
@@ -698,15 +745,343 @@ class Game(commands.Cog, name="Game"):
 
 
     @commands.command(hidden=True)
-    async def kill(self, ctx, *, target):
-        pass
+    async def kill(self, ctx, *, target=None):
+        session = self.find_session_player(ctx.author.id)
+        if not session: return
+        player = self.find_player(session, ctx.author.id)
+        if not player.alive: return
+        if 'kill' not in player.commands: return
+
+        if session.day:
+            return ctx.reply(self.lg('kill_day'))
+
+        if target is None:
+            targets = [f"`{self.get_name(self.find_player(session, x))}`" for x in player.targets]
+            return ctx.reply('\n'.join([
+                self.lgr(player.role, 'desc'), 
+                self.lg('kill_target',
+                    listing=': ' + ', '.join(targets) if targets else 'nobody'
+                )
+            ]))
+
+        if player.role == 'wolf':
+            num_kills = 1
+            targets = target.lower().split(' and ')
+            actual_targets = []
+            for target in targets:
+                targetpl = self.get_player(session, target)
+                if targetpl is None:
+                    return await ctx.reply(self.lg('no_player_found', query=target))
+                actual_targets.append(targetpl)
+            actual_targets = set(actual_targets)
+
+            valid_targets = []
+            if len(actual_targets) > num_kills:
+                return await ctx.reply(self.lg('kill_too_many', count=num_kills, s=self.s(num_kills)))
+
+            for target in actual_targets:
+                if target.id == player.id:
+                    return await ctx.reply(self.lg('kill_suicide'))
+                elif target.team == 'wolf' and target.role not in []:
+                    return await ctx.reply(self.lg('kill_teamkill'))
+                elif not target.alive:
+                    return await ctx.reply(self.lg('player_dead', name=self.get_name(target)))
+
+                valid_targets.append(target)
+
+            # misdirection
+
+            session = self.session_update('pull', session)
+            player = self.find_player(session, player.id)
+            player.targets = [x.id for x in valid_targets]
+            session = self.player_update(session, player)
+
+            listing = self.listing([f"**{self.get_name(x)}**" for x in valid_targets])
+
+            await ctx.reply(self.lg('kill_voted', listing=listing))
+            await wolfchat(session, self.lg('kill_voted_wolfchat', name=self.get_name(player), listing=listing))
+
+            # log
 
     @commands.command(hidden=True)
-    async def see(self, ctx, *, target):
-        pass
+    async def see(self, ctx, *, target=None):
+        session = self.find_session_player(ctx.author.id)
+        if not session: return
+        player = self.find_player(session, ctx.author.id)
+        if not player.alive: return
+        if 'see' not in player.commands: return
+
+        if session.day:
+            return await ctx.reply(self.lg('see_day'))
+
+        if player.target is not None:
+            return await ctx.reply(self.lg('see_already_used'))
+
+        if target is None:
+            return await ctx.reply(self.lgr(player.role, 'desc'))
+
+        targetpl = self.get_player(session, target)
+        if targetpl is None:
+            return await ctx.reply(self.lg('no_player_found', query=target))
+
+        if targetpl.id == player.id:
+            return await ctx.reply(self.lg('see_self'))
+        elif not targetpl.alive:
+            return await ctx.reply(self.lg('player_dead', name=self.get_name(target)))
+
+        if player.role == 'seer':
+            seen_role = targetpl.seen_role
+            # deceit totem
+            msg = self.lg('see_is', a=self.a(seen_role), role=seen_role)
+
+        await ctx.reply(self.lg('see_result', name=self.get_name(player), msg=msg))
+
+        session = self.session_update('pull', session)
+        player = self.find_player(session, player.id)
+        player.target = targetpl.id
+        session = self.player_update(session, player)
+
+        # log
 
 
 
+
+    @commands.group(aliases=['f'])
+    @admin
+    async def force(self, ctx):
+        if not ctx.invoked_subcommand:
+            await ctx.reply(await ctx.send_help())
+
+    @force.command(aliases=['j'])
+    async def join(self, ctx, session: typing.Union[int, commands.UserConverter], *, targets: commands.Greedy[commands.UserConverter] = None):
+        if isinstance(session, int): session = self.find_session_channel(session)
+        else:
+            session = self.find_session_channel(ctx.channel.id)
+            if targets is not None: targets = [session] + targets
+            else: targets = session
+        if not session: return await ctx.reply(self.lg('no_session'))
+
+        for t in targets:
+            msg = self.player_join(session, t)
+            await ctx.reply(f"[{t.mention} ({t.id})]: {msg}")
+
+    @force.command(aliases=['l'])
+    async def leave(self, ctx, session: typing.Union[int, commands.UserConverter], *, targets: commands.Greedy[commands.UserConverter] = None):
+        if isinstance(session, int): session = self.find_session_channel(session)
+        else:
+            session = self.find_session_channel(ctx.channel.id)
+            if targets is not None: targets = [session] + targets
+            else: targets = session
+        if not session: return await ctx.reply(self.lg('no_session'))
+
+        if not session.in_session:
+            for t in targets:
+                player = self.find_preplayer(session, t.id)
+                if player is None:
+                    await ctx.reply(f"**{t.display_name} ({t.id})** is not in-game!")
+                    continue
+
+                session = self.session_update('pull', session)
+                session, msg = self.preplayer_leave(session, self.get_preplayer(session, t.id))
+                session = self.preplayer_update(session, self.get_player(session, t.id))
+
+                await ctx.reply(f"[{t.mention} ({t.id})]: {msg}")
+        else:
+            for t in targets:
+                player = self.find_player(session, t.id)
+                if player is None:
+                    await ctx.reply(f"**{t.display_name} ({t.id})** is not in-game!")
+                    continue
+                if not player.alive:
+                    await ctx.reply(f"**{t.display_name} ({t.id})**  is already dead!")
+                    continue
+
+                session = self.session_update('pull', session)
+                session, msg = self.player_leave(session, self.get_player(session, t.id))
+                session = self.player_update(session, self.get_player(session, t.id))
+
+                await ctx.reply(f"[{t.mention} ({t.id})]: {msg}")
+
+    @force.command()
+    async def start(self, ctx, session: int = None):
+        if session is not None: session = self.find_session_channel(session)
+        else: session = self.find_session_channel(ctx.channel.id)
+        if not session: return await ctx.reply(self.lg('no_session'))
+
+        if session.in_session: return await ctx.reply("The game is already in session!")
+
+        await self.engine.run_game(session)
+        await ctx.reply(f"Starting...")
+        # log
+
+    @force.command()
+    async def stop(self, ctx, session: int = None):
+        if session is not None: session = self.find_session_channel(session)
+        else: session = self.find_session_channel(ctx.channel.id)
+        if not session: return await ctx.reply(self.lg('no_session'))
+
+        if not session.in_session: return await ctx.reply("The game not yet in session!")
+
+        session.in_session(False)
+        session = self.session_update('push', session, ['_in_session'])
+        await ctx.reply(f"Stopping...")
+        # log
+
+    @force.command(aliases=['settime', 'ts'])
+    async def timeset(self, ctx, session: typing.Union[int, str], *, time = None):
+        if isinstance(session, int): session = self.find_session_channel(session)
+        else:
+            session = self.find_session_channel(ctx.channel.id)
+            if time is not None: time = ' '.join([session, time])
+            else: time = session
+        if not session: return await ctx.reply(self.lg('no_session'))
+
+        time = time.lower()
+        if time not in ['day', 'night']:
+            return await ctx.reply("Please specify either `day` or `night`")
+
+        if time == 'day':
+            session.set_day()
+        elif time == 'night':
+            session.set_night()
+
+        session = self.session_update('push', session, ['_daynight'])
+
+        await ctx.reply(f"Setting time to {time}")
+        # log
+
+    @force.command()
+    async def target(self, ctx, session: typing.Union[int, commands.UserConverter], target: commands.Greedy[typing.Union[str, commands.UserConverter]] = None):
+        if isinstance(session, int): session = self.find_session_channel(session)
+        else:
+            session = self.find_session_channel(ctx.channel.id)
+            if targets is not None: targets = [session] + targets
+            else: targets = session
+        if not session: return await ctx.reply(self.lg('no_session'))
+
+        if len(targets) < 2: return await ctx.reply("Please specify at least two users - the targeter and the targeted player(s).")
+
+        targeter = self.find_player(session, targets[0].id)
+        if targeter is None: return await ctx.reply(f"**{target[0].display_name} ({target[0].id})** is not in-game!")
+
+        targeted = []
+        for t in targets[1:]:
+            td = self.find_player(session, t.id)
+            if td is None: return await ctx.reply(f"**{t.display_name} ({t.id})** is not in-game!")
+            targeted.append(td)
+
+        if not any(x in ['kill'] for x in targeter.commands):
+            return await ctx.reply(f"**{targeter.display_name} ({targeter.id})** can't target anything!")
+
+        session = self.session_update('pull', session)
+        player = self.find_player(session, player.id)
+        player.targets = [x.id for x in targeted]
+        session = self.player_update(session, player)
+
+        listing = self.listing([f"{x.mention} ({x.id})" for x in targeted])
+
+        await ctx.reply(f"Set {targeter.mention}'s ({targeter.id}) target(s) to {listing}")
+        # log
+
+    @force.command()
+    async def role(self, ctx, session: typing.Union[int, commands.UserConverter], target: commands.Greedy[typing.Union[str, commands.UserConverter]] = None):
+        if isinstance(session, int): session = self.find_session_channel(session)
+            else:
+                session = self.find_session_channel(ctx.channel.id)
+                if targets is not None: targets = [session] + targets
+                else: targets = session
+            if not session: return await ctx.reply(self.lg('no_session'))
+
+        if not session.in_session: return await ctx.reply("Please wait until the game is in session")
+
+        player = self.find_player(session, targets[0].id)
+        if player is None: return await ctx.reply(f"**{target[0].display_name} ({target[0].id})** is not in-game!")
+
+        role = ' '.join(targets[1:]).lower()
+        if role not in self.roles():
+            return await ctx.reply(f"Cannot find role named `{role}`")
+
+        newrole = self.roles_list[role](targets[0])
+        newrole._template = player._template
+        newrole._totems = player._totems
+        newrole._items = player._items
+        newrole._alive = player._alive
+        newrole._vote = player._vote
+
+        session = self.session_update('pull', session)
+        session = self.player_update(session, newrole)
+
+        await ctx.reply(f"Set {player.mention}'s' ({player.id}) role to `{role}`")
+        # log
+
+    @force.command()
+    async def template(self, ctx, session: typing.Union[int, commands.UserConverter], target: commands.Greedy[typing.Union[str, commands.UserConverter]] = None):
+        if isinstance(session, int): session = self.find_session_channel(session)
+            else:
+                session = self.find_session_channel(ctx.channel.id)
+                if targets is not None: targets = [session] + targets
+                else: targets = session
+            if not session: return await ctx.reply(self.lg('no_session'))
+
+        if not session.in_session: return await ctx.reply("Please wait until the game is in session")
+
+        player = self.find_player(session, targets[0].id)
+        if player is None: return await ctx.reply(f"**{target[0].display_name} ({target[0].id})** is not in-game!")
+
+        template = ' '.join(targets[1:]).lower()
+        if template not in self.templates:
+            return await ctx.reply(f"Cannot find template named `{template}`")
+
+        session = self.session_update('pull', session)
+        player = self.find_player(session, targets[0].id)
+        current = getattr(player.template, template)
+        setattr(player.template, template, not current)
+        session = self.player_update(session, newrole)
+
+        await ctx.reply(f"Toggled {player.mention}'s' ({player.id}) `{template}` template to `{not current}`")
+        # log
+
+    @force.command()
+    async def gamemode(self, ctx, session: typing.Union[int, str], *, mode = None):
+        if isinstance(session, int): session = self.find_session_channel(session)
+            else:
+                session = self.find_session_channel(ctx.channel.id)
+                if mode is not None: mode = [session] + mode
+                else: mode = session
+            if not session: return await ctx.reply(self.lg('no_session'))
+
+        if session.in_session: return await ctx.reply("The game is already in session!")
+
+        mode = ' '.join(mode).lower()
+        if mode not in self.gamemodes.keys():
+            return await ctx.reply(f"Cannot find gamemode named `{mode}`")
+
+        session.gamemode(mode)
+        session = self.session_update('push', session, ['_gamemode'])
+
+        await ctx.reply(f"Set the gamemode to `{mode}`")
+        # log
+
+    @force.command()
+    async def reveal(self, ctx, session: typing.Union[int, str], *, mode = None):
+        if isinstance(session, int): session = self.find_session_channel(session)
+            else:
+                session = self.find_session_channel(ctx.channel.id)
+                if mode is not None: mode = [session] + mode
+                else: mode = session
+            if not session: return await ctx.reply(self.lg('no_session'))
+
+        if session.in_session: return await ctx.reply("The game is already in session!")
+
+        mode = ' '.join(mode).lower()
+        if mode not in ['reveal', 'noreveal']:
+            return await ctx.reply(f"Please specify either `reveal` or `noreveal`")
+
+        session.reveal(True if mode == 'reveal' else False)
+        session = self.session_update('push', session, ['_reveal'])
+
+        await ctx.reply(f"Set the reveal to `{mode}`")
+        # log
 
 
 
@@ -895,7 +1270,7 @@ class Game(commands.Cog, name="Game"):
             if player.alive != alive: return False, ''
 
         if in_dm is not None:
-            if ctx.channel.is_private != in_dm: return (False, await self.use_in_channel(session, ctx))
+            if not ctx.guild != in_dm: return (False, await self.use_in_channel(session, ctx))
 
         if in_channel:
             if session.channel.id != ctx.channel.id: return False, ''

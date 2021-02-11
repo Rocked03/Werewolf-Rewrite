@@ -17,7 +17,6 @@ class Role:
         self._items = Items()
         self._alive = True
         self._vote = None
-        self._revealed = False
 
     @property
     def player(self):
@@ -63,10 +62,6 @@ class Role:
     @property
     def vote(self):
         return self._vote
-
-    @property
-    def revealed(self):
-        return self._revealed
     
     
 
@@ -77,6 +72,13 @@ class Role:
         elif isinstance(other, str):
             return self.name == other
         return False
+
+
+    def night_check(self):
+        return True
+
+    def sunset_reset(self):
+        pass
 
 
 

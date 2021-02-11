@@ -13,8 +13,8 @@ class Player:
 
         self._real = real
 
-        send = self._user.send
-        mention = self._user.mention
+        self.send = self._user.send
+        self.mention = self._user.mention
 
         class Voting:
             start = False
@@ -71,3 +71,20 @@ class Player:
     @vote.setter
     def vote(self, value):
         self._vote = value
+
+
+class Bot:
+    def __init__(self, _id, _name, _discriminator, _channel):
+        self.id = _id
+        self.name = _name
+        self.display_name = _name
+        self.discriminator = _discriminator
+
+        self.mention = f"@{_name}#{_discriminator}\\🤖"
+
+        self.channel = _channel
+
+    async def send(self, *args, **kwargs):
+        args = list(args)
+        args[0] = f"**[DM to {self.name}]**: {args[0]}"
+        await self.channel.send(*args, **kwargs)

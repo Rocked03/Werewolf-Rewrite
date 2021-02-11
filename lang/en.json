@@ -386,6 +386,63 @@
         "stats_players": [
             "```basic\nLiving players:\n{alive}\nDead players:\n{dead}\n"
         ],
+
+        "wolfchat": [
+            "wolfchat"
+        ],
+
+        "wolfchat_no_dm": [
+            "{player} has their DMs off! Cannot send {wolfchat} message to them."
+        ],
+
+
+        "kill_day": [
+            "You may only kill someone during the night."
+        ],
+
+        "kill_target": [
+            "You are currently targeting {listing}."
+        ],
+
+        "kill_too_many": [
+            "You may only kill **{count}** target{s}."
+        ],
+
+        "kill_suicide": [
+            "Suicide is bad for you."
+        ],
+
+        "kill_teamkill": [
+            "You can't kill another wolf."
+        ],
+
+        "kill_voted": [
+            "You have voted to kill {listing}."
+        ],
+
+        "kill_voted_wolfchat": [
+            "{name} has voted to kill {listing}."
+        ],
+
+        "see_day": [
+            "You may only see during the night."
+        ],
+
+        "see_already_used": [
+            "You have already used your power!"
+        ],
+
+        "see_self": [
+            "Using your power on yourself would be a waste."
+        ],
+
+        "see_is": [
+            "is {a} **{role}**!"
+        ],
+
+        "see_result": [
+            "You have a vision... in your vision you see that **{name}** {msg}!"
+        ],
     },
 
 
