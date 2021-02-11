@@ -986,11 +986,11 @@ class Game(commands.Cog, name="Game"):
     @force.command()
     async def role(self, ctx, session: typing.Union[int, commands.UserConverter], target: commands.Greedy[typing.Union[str, commands.UserConverter]] = None):
         if isinstance(session, int): session = self.find_session_channel(session)
-            else:
-                session = self.find_session_channel(ctx.channel.id)
-                if targets is not None: targets = [session] + targets
-                else: targets = session
-            if not session: return await ctx.reply(self.lg('no_session'))
+        else:
+            session = self.find_session_channel(ctx.channel.id)
+            if targets is not None: targets = [session] + targets
+            else: targets = session
+        if not session: return await ctx.reply(self.lg('no_session'))
 
         if not session.in_session: return await ctx.reply("Please wait until the game is in session")
 
@@ -1017,11 +1017,11 @@ class Game(commands.Cog, name="Game"):
     @force.command()
     async def template(self, ctx, session: typing.Union[int, commands.UserConverter], target: commands.Greedy[typing.Union[str, commands.UserConverter]] = None):
         if isinstance(session, int): session = self.find_session_channel(session)
-            else:
-                session = self.find_session_channel(ctx.channel.id)
-                if targets is not None: targets = [session] + targets
-                else: targets = session
-            if not session: return await ctx.reply(self.lg('no_session'))
+        else:
+            session = self.find_session_channel(ctx.channel.id)
+            if targets is not None: targets = [session] + targets
+            else: targets = session
+        if not session: return await ctx.reply(self.lg('no_session'))
 
         if not session.in_session: return await ctx.reply("Please wait until the game is in session")
 
@@ -1044,11 +1044,11 @@ class Game(commands.Cog, name="Game"):
     @force.command()
     async def gamemode(self, ctx, session: typing.Union[int, str], *, mode = None):
         if isinstance(session, int): session = self.find_session_channel(session)
-            else:
-                session = self.find_session_channel(ctx.channel.id)
-                if mode is not None: mode = [session] + mode
-                else: mode = session
-            if not session: return await ctx.reply(self.lg('no_session'))
+        else:
+            session = self.find_session_channel(ctx.channel.id)
+            if mode is not None: mode = [session] + mode
+            else: mode = session
+        if not session: return await ctx.reply(self.lg('no_session'))
 
         if session.in_session: return await ctx.reply("The game is already in session!")
 
@@ -1065,11 +1065,11 @@ class Game(commands.Cog, name="Game"):
     @force.command()
     async def reveal(self, ctx, session: typing.Union[int, str], *, mode = None):
         if isinstance(session, int): session = self.find_session_channel(session)
-            else:
-                session = self.find_session_channel(ctx.channel.id)
-                if mode is not None: mode = [session] + mode
-                else: mode = session
-            if not session: return await ctx.reply(self.lg('no_session'))
+        else:
+            session = self.find_session_channel(ctx.channel.id)
+            if mode is not None: mode = [session] + mode
+            else: mode = session
+        if not session: return await ctx.reply(self.lg('no_session'))
 
         if session.in_session: return await ctx.reply("The game is already in session!")
 
