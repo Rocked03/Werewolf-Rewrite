@@ -194,6 +194,10 @@
             "You don't seem to be in any game! To join a game, type `{prefix}join` in a game channel."
         ],
 
+        "not_in_session": [
+            "The game is currently not in session!"
+        ],
+
         "already_in": [
             "You are already playing!",
             "You are already in!"

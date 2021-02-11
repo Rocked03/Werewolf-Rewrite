@@ -846,6 +846,27 @@ class Game(commands.Cog, name="Game"):
 
 
 
+    @commands.command()
+    @admin
+    async def revealroles(self, ctx, session: int = None):
+        if session is not None: session = self.find_session_channel(session)
+        else: session = self.find_session_channel(ctx.channel.id)
+        if not session: return await ctx.reply(self.lg('no_session'))
+
+        if not session.in_session: return await ctx.reply(self.lg('not_in_session'))
+
+        msg = [f"**Gamemode**: {session.gamemode}\n```diff"]
+        for player in session.players:
+            msg.append("{} {} ({}): {}; action: {}; other: {}".format(
+                '+' if session[1][player][0] else '-', get_name(player), player, get_role(player, 'actual'),
+                session[1][player][2], ' '.join(session[1][player][4])))
+            msg.append(f"{'+' if player else '-'} {self.get_name(player)} ({player.id}): {player.role}; template: {', '.join(getattr(player.template, x) for x in self.templates)}; action: {player.targets if 'targets' in dir(player)}")
+        msg.append("```")
+
+        await ctx.reply('\n'.join(msg))
+        # log
+
+
     @commands.group(aliases=['f'])
     @admin
     async def force(self, ctx):
