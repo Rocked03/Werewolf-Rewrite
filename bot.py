@@ -10,8 +10,7 @@ from discord.ext import commands
 
 from config import *
 
-intents = discord.Intents.default()
-intents.messages = True
+intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=BOT_PREFIX, description='Werewolf', intents=intents)
 
 
@@ -44,20 +43,21 @@ async def on_ready():
 
     while True:
         await asyncio.sleep(1)
-        bot.WEREWOLF_SERVER = bot.get_guild(config.WEREWOLF_SERVER_ID)
+        bot.WEREWOLF_SERVER = bot.get_guild(WEREWOLF_SERVER_ID)
         if bot.WEREWOLF_SERVER: break
     
-    if not boy.WEREWOLF_SERVER:
+    if not bot.WEREWOLF_SERVER:
       await bot.shutdown(f'Error: could not find guild with id {WEREWOLF_SERVER_ID}.')
-    bot.GAME_CHANNEL = bot.WEREWOLF_SERVER.get_channel(GAME_CHANNEL_ID)
-    bot.DEBUG_CHANNEL = bot.WEREWOLF_SERVER.get_channel(DEBUG_CHANNEL_ID)
-    bot.ADMINS_ROLE = bot.WEREWOLF_SERVER.get_role(ADMINS_ROLE_ID)
-    bot.PLAYERS_ROLE = bot.WEREWOLF_SERVER.get_role(PLAYERS_ROLE_ID)
-    required_fields = ('GAME_CHANNEL', 'DEBUG_CHANNEL', 'ADMINS_ROLE', 'PLAYERS_ROLE')
-    for field in required_fields:
-      if not getattr(bot, field):
-          await bot.shutdown(f'Error: could not find {field}. '
-                              f'Please double-check {field}_ID in config.py.')
+    # bot.GAME_CHANNEL = bot.WEREWOLF_SERVER.get_channel(GAME_CHANNEL_ID)
+    # bot.DEBUG_CHANNEL = bot.WEREWOLF_SERVER.get_channel(DEBUG_CHANNEL_ID)
+    # bot.ADMINS_ROLE = bot.WEREWOLF_SERVER.get_role(ADMINS_ROLE_ID)
+    # bot.PLAYERS_ROLE = bot.WEREWOLF_SERVER.get_role(PLAYERS_ROLE_ID)
+    # required_fields = ('GAME_CHANNEL', 'DEBUG_CHANNEL', 'ADMINS_ROLE', 'PLAYERS_ROLE')
+    # for field in required_fields:
+    #   if not getattr(bot, field):
+    #       await bot.shutdown(f'Error: could not find {field}. '
+    #                           f'Please double-check {field}_ID in config.py.')
+    print('async init complete')
 
 
 

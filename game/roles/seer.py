@@ -1,5 +1,5 @@
-from role import Role
-from villageteam import VillageTeam
+from .role import Role
+from .villageteam import VillageTeam
 
 
 class Seer(VillageTeam):

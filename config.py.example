@@ -1,10 +1,10 @@
 BOT_PREFIX = '!'
 TOKEN = 'bot token goes here'
-GAME_CHANNEL_ID = 1234567890 # replace this. lobby channel id (where all gameplay happens).
+GAME_CHANNEL_ID = [1234567890] # replace this. lobby channel ids (where all gameplay happens).
 DEBUG_CHANNEL_ID = 1234567890 # replace this. debug channel id (for all your errors and debug stuff). should be different than GAME_CHANNEL_ID.
 WEREWOLF_SERVER_ID = 1234567890 # replace this. id of server the bot is running on
 PLAYERS_ROLE_ID = 1234567890 # replace this. id of 'Players' role in the server
-ADMINS_ROLE_ID = [1234567890] # replace this. id of 'Admins' role in the server
+ADMINS_ROLE_ID = [1234567890] # replace this. ids of 'Admins' roles in the server
 WEREWOLF_NOTIFY_ROLE_ID = 1234567890 # replace this. id of optional 'Werewolf Notify' role in the server
 ADMINS = [1234567890, 2345678901, ...] # replace this. user ids to grant Werewolf Admin perms to. the bot owner automatically gets all perms.
 IGNORE_LIST = [] # users to ignore

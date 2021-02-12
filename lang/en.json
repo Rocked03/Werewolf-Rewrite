@@ -68,7 +68,7 @@
             "The {villagers}, after much debate, finally decide on lynching **{lynched}**, who turned out to be... a **{role}**.",
             "After a prolonged struggle, **{lynched}** is forced to the gallows, and is discovered after death to be a **{role}**.",
             "The {villagers} choose to hang **{lynched}**; however, the rope stretches and breaks, and the ensuing fall kills the **{role}**."
-        ], // lynched, role
+        ],
 
         "lynched_no_reveal": [
             "The {villagers} have agreed to lynch **{lynched}**.",
@@ -187,7 +187,7 @@
         ],
 
         "no_session_channel_join": [
-            "There is currently no active game in this channel. Try {prefix}join to start a new game!"
+            "There is currently no active game in this channel. Type `{prefix}join` to start a new game!"
         ],
 
         "no_session_user": [
@@ -206,7 +206,7 @@
             "A session has been initiated in {channel} ({channelid})"
         ],
 
-        "session_destory_check": [
+        "session_destroy_check": [
             "Are you sure you want to destory the session? If you do, many things may break."
         ],
 
@@ -219,7 +219,7 @@
             "You are already in!"
         ],
 
-        "maxplayers": [
+        "max_players": [
             "The maximum number of players ({max_players}) have already joined the game.",
             "There's no room left for you to join this game. There are already {max_players} players in this lobby."
         ],
@@ -274,7 +274,7 @@
         ],
 
         "lobby_count": [
-            "{count} players in lobby: ```\n{players}\n```"
+            "{count} player{s} in lobby: ```\n{players}\n```"
         ],
 
 
@@ -462,7 +462,7 @@
 
         "see_result": [
             "You have a vision... in your vision you see that **{name}** {msg}!"
-        ],
+        ]
     },
 
 
@@ -473,15 +473,20 @@
 
 
     "roles": {
+        "seer": {
+            "sg": "seer",
+            "pl": "seers",
+            "desc": "Your job is to detect the wolves; you may have a vision once per night. Type `see <player>` in private message to see their role."
+        },
         "villager": {
             "sg": "villager",
             "pl": "villagers",
-            "desc": "TBA"
+            "desc": "Your job is to lynch all of the wolves."
         },
         "wolf": {
             "sg": "wolf",
             "pl": "wolves",
-            "desc": "TBA"
+            "desc": "Your job is to kill all of the villagers. Type `kill <player>` in private message to kill them."
         },
 
         "cursed": {

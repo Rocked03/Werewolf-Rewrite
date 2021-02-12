@@ -1,4 +1,4 @@
-from role import Role
+from .role import Role
 
 
 class VillageTeam(Role):

@@ -1,10 +1,10 @@
-from .roles import Role
+from .role import Role
 
 
 class Player:
-    def __init__(self, _id, user, *, real=True):
+    def __init__(self, _id, _user, *, real=True):
         self.id = _id  # player id
-        self._user = user
+        self.user = _user
         self._name = None
         self._nickname = None
         self._discriminator = None
@@ -13,8 +13,8 @@ class Player:
 
         self._real = real
 
-        self.send = self._user.send
-        self.mention = self._user.mention
+        self.send = self.user.send
+        self.mention = self.user.mention
 
         class Voting:
             start = False
@@ -30,7 +30,7 @@ class Player:
 
     @property
     def name(self):
-        return self._name or self._user.name or f'player with id {self.id}'
+        return self._name or self.user.name or f'player with id {self.id}'
 
     @name.setter
     def name(self, value):
@@ -38,7 +38,7 @@ class Player:
 
     @property
     def nickname(self):
-        return self._nickname or self.name or self._user.display_name
+        return self._nickname or self.name or self.user.display_name
 
     @nickname.setter
     def nickname(self, value):
@@ -46,7 +46,7 @@ class Player:
 
     @property
     def discriminator(self):
-        return self._discriminator or self._user.discriminator or '0000'
+        return self._discriminator or self.user.discriminator or '0000'
 
     @discriminator.setter
     def discriminator(self, value):

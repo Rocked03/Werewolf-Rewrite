@@ -90,6 +90,9 @@ class Template:
     seen = {
         'cursed': 'wolf'
     }
+    templates = [
+        'cursed'
+    ]
 
 class Totems:
     placeholder = 0

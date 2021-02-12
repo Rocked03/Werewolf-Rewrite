@@ -13,7 +13,7 @@ class Meta(commands.Cog, name="Meta"):
         self.bot = bot
 
     @commands.command()
-    async def ping(ctx):
+    async def ping(self, ctx):
         """Checks the bot's latency"""
         latency = self.bot.latency*1000
         latency = round(latency,2)
@@ -22,8 +22,8 @@ class Meta(commands.Cog, name="Meta"):
         embed.set_author(name="Ping!")
         embed.add_field(name='Bot latency', value=latency+"ms")
         embed.set_footer(
-                        text=f"{str(ctx.author)} | {bot.user.name} | {ctx.prefix}{ctx.command.name}",
-                        icon_url=bot.user.avatar_url)
+                        text=f"{str(ctx.author)} | {self.bot.user.name} | {ctx.prefix}{ctx.command.name}",
+                        icon_url=self.bot.user.avatar_url)
         await ctx.send(embed=embed)
 
 
