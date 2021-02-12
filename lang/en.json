@@ -154,7 +154,7 @@
 
 
         "welcome": [
-            "{listing}, Welcome to Werewolf, the popular detective/social party game (a theme of Mafia). Using the **{gamemode}** gamemode with **{count}** players.\nAll players check for PMs from me for instructions. If you did not receive a pm, please try `{prefix}myrole` to resend your role."
+            "{listing}, Welcome to Werewolf, the popular detective/social party game (a theme of Mafia). Using the **{gamemode}** gamemode with **{count}** players.\nAll players check for DMs from me for instructions. If you did not receive a DM, please try `{prefix}myrole` to resend your role."
         ],
 
 
@@ -262,11 +262,11 @@
         ],
 
         "leave_lobby": [
-            "**{name}** left the game. There are now **{count}** players in the lobby.",
-            "**{name}** walked out of the lobby. There are now **{count}** players in the lobby.",
+            "**{name}** left the game. There are now **{count}** player{s} in the lobby.",
+            "**{name}** walked out of the lobby. There are now **{count}** player{s} in the lobby.",
             "**{name}** was shot twice by a hunter, once in the head and once in the heart. Remaining players: **{count}**",
             "**{name}** poked a bear in the eye with a stick and has paid the price. Remaining players: **{count}**",
-            "**{name}** was hit by a humongous yellow bullet from a giant yellow tank. The **{count}** remaining players cower in fear."
+            "**{name}** was hit by a humongous yellow bullet from a giant yellow tank. The **{count}** remaining player{s} cower in fear."
         ],
 
         "guild_leave_lobby": [
@@ -296,7 +296,7 @@
             "An admin has already set a gamemode."
         ],
 
-        "admin_set_gamemode": [
+        "admin_set_reveal": [
             "An admin has already set the reveal setting."
         ],
 

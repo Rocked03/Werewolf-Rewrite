@@ -16,6 +16,8 @@ class Player:
         self.send = self.user.send
         self.mention = self.user.mention
 
+        self.player = self
+
         class Voting:
             start = False
             gamemode = None
@@ -86,5 +88,5 @@ class Bot:
 
     async def send(self, *args, **kwargs):
         args = list(args)
-        args[0] = f"**[DM to {self.name}]**: {args[0]}"
+        args[0] = f"**[DM to {self.name} ({self.id})]**: {args[0]}"
         await self.channel.send(*args, **kwargs)
