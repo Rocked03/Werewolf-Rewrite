@@ -1,4 +1,7 @@
-for i in range(5):
-	print(i)
-else:
-	print('aaa')
+class A:
+	a = 1
+
+	def __init__(self):
+		self.b = 2
+
+print(A().b)

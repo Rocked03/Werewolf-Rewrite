@@ -1,7 +1,6 @@
 class Role:
     role = None
     team = None
-    commands = []
 
     _death_role = None
     _seen_role = None
@@ -11,12 +10,17 @@ class Role:
         self.send = self.player.send
         self.mention = self.player.mention
         self.id = self.player.id
+        self.name = self.player.name
+        self.nickname = self.player.nickname
+        self.discriminator = self.player.discriminator
 
         self.template = Template()
         self.totems = Totems()
         self.items = Items()
         self.alive = True
         self.vote = None
+
+        self._targets = None
     
     @property
     def death_role(self):
@@ -24,8 +28,8 @@ class Role:
 
     @property
     def seen_role(self):
-        if self._template.cursed:
-            return self._template.seen['cursed']
+        if self.template.cursed:
+            return self.template.seen['cursed']
         return self._seen_role or self.role
 
 
@@ -42,6 +46,15 @@ class Role:
 
     def sunset_reset(self):
         pass
+
+
+    @property
+    def targets(self):
+        return self._targets
+
+    @targets.setter
+    def targets(self, value):
+        self._targets = value
 
 
 

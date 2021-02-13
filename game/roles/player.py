@@ -5,9 +5,9 @@ class Player:
     def __init__(self, _id, _user, *, real=True):
         self.id = _id  # player id
         self.user = _user
-        self._name = None
-        self._nickname = None
-        self._discriminator = None
+        self._name = self.user.name
+        self._nickname = self.user.display_name
+        self._discriminator = self.user.discriminator
 
         self._role = None
 
@@ -32,7 +32,7 @@ class Player:
 
     @property
     def name(self):
-        return self._name or self.user.name or f'player with id {self.id}'
+        return self.user.name or f'player with id {self.id}'
 
     @name.setter
     def name(self, value):

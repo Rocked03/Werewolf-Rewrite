@@ -17,8 +17,3 @@ class Seer(VillageTeam):
 
     def sunset_reset(self):
         self._target = None
-
-
-    @property
-    def targets(self):
-    	return self._targets

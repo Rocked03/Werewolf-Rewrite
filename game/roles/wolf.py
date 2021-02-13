@@ -14,8 +14,4 @@ class Wolf(WolfTeam):
     def sunset_reset(self):
         self._targets = []
 
-
-    @property
-    def targets(self):
-        return self._targets
     

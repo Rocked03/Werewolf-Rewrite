@@ -9,7 +9,7 @@
         ],
 
         "almost_day": [
-            "**A few {villagers} awake early and notice it is still dark outside. The night is almost over and there are still whispers heard in the village**"
+            "**A few {villagers} awake early and notice it is still dark outside. The night is almost over and there are still whispers heard in the village.**"
         ],
 
         "almost_night": [
@@ -198,6 +198,10 @@
             "The game is currently not in session!"
         ],
 
+        "already_in_session": [
+            "The game is already in session!"
+        ],
+
         "session_already_exists": [
             "A session already exists in this channel!"
         ],
@@ -287,6 +291,10 @@
             "Please use the `{command}` command in {channel}!"
         ],
 
+        "use_in_channel_2": [
+            "Please use the `{command}` command in a game channel!"
+        ],
+
         "use_in_dm": [
             "Please use the `{command}` command in DMs"
         ],
@@ -346,6 +354,10 @@
             "**{name}** has voted to start the game. **{count}** more vote{pl} needed."
         ],
 
+        "start_idle": [
+            "Not enough votes to start, resetting start votes."
+        ],
+
         "start_vote_count": [
             "**{player_count}** player{s_pc} in the lobby, **{gamemode_count}** vote{s_gm} required to choose a gamemode, majority votes required to choose whether to reveal roles, **{start_count}** votes needed to start."
         ],
@@ -363,7 +375,11 @@
         ],
 
         "no_votes_yet": [
-            "No one has cast a vote yet. Do `{prefix}lynch <player>` in {channel} to lynch <player>. "
+            "No one has cast a vote yet. Type `{prefix}lynch <player>` in {channel} to lynch a player."
+        ],
+
+        "night_votes": [
+            "There is no voting at night!"
         ],
 
         "retract_vote": [
@@ -404,7 +420,7 @@
         ],
 
         "stats_players": [
-            "```basic\nLiving players:\n{alive}\nDead players:\n{dead}\n"
+            "```basic\n --- Living players: --- \n{alive}\n --- Dead players: --- \n{dead}\n"
         ],
 
         "wolfchat": [
