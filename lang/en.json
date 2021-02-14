@@ -1,7 +1,7 @@
 {
     "phrases": {
         "now_daytime": [
-            "It is now **daytime**. Use `{prefix}lynch <player>` to vote to lynch <player>."
+            "It is now **daytime**. Use `{prefix}vote <player>` to vote to lynch a player."
         ],
 
         "now_nighttime": [
@@ -92,7 +92,7 @@
             "After jumping into a tank, **{name}** drowned. The fish consumed the dead **{role}**'s body.",
             "**{name}** mysteriously disappeared in the woods. Nobody knows where the **{role}** went.",
             "Standing under a tree, **{name}**, a **{role}**, is killed by a falling branch.",
-            "**{name}**, a **{role}**, is killed by lightning before the villagers' eyes. The air smells of burnt flesh.",
+            "**{name}**, a **{role}**, is killed by lightning before the {villagers}' eyes. The air smells of burnt flesh.",
             "Rampaging through the village, a bull gores **{name}**, a **{role}**.",
             "**{name}**, a **{role}**, falls into a vat of molasses and drowns."
         ],
@@ -106,7 +106,7 @@
             "After jumping into a tank, **{name}** drowned. The fish consumed their dead body.",
             "**{name}** mysteriously disappeared in the woods. Nobody knows where they went.",
             "Standing under a tree, **{name}** is killed by a falling branch.",
-            "**{name}** is killed by lightning before the villagers' eyes. The air smells of burnt flesh.",
+            "**{name}** is killed by lightning before the {villagers}' eyes. The air smells of burnt flesh.",
             "Rampaging through the village, a bull gores **{name}**.",
             "**{name}** falls into a vat of molasses and drowns."
         ],
@@ -154,7 +154,7 @@
 
 
         "welcome": [
-            "{listing}, Welcome to Werewolf, the popular detective/social party game (a theme of Mafia). Using the **{gamemode}** gamemode with **{count}** players.\nAll players check for DMs from me for instructions. If you did not receive a DM, please try `{prefix}myrole` to resend your role."
+            "{listing}, Welcome to **{game_name}**, the popular detective/social party game (a theme of Mafia). Using the **{gamemode}** gamemode with **{count}** players.\nAll players check for DMs from me for instructions. If you did not receive a DM, please try `{prefix}myrole` to resend your role."
         ],
 
 
@@ -229,7 +229,7 @@
         ],
 
         "first_join": [
-            "**{name}** has started a game of Werewolf. Type `{prefix}join` to join. Type `{prefix}start` to start the game."
+            "**{name}** has started a game of {game_name}. Type `{prefix}join` to join. Type `{prefix}start` to start the game."
         ],
 
         "joined_game": [
@@ -440,7 +440,7 @@
         ],
 
         "game_time": [
-            "It is now **{daynight}**. There is **{time}** until {change}."
+            "It is currently **{daynight}**. There is **{time}** until {change}."
         ],
 
 
@@ -461,7 +461,7 @@
         ],
 
         "kill_teamkill": [
-            "You can't kill another wolf."
+            "You can't kill another <wolf|sg>."
         ],
 
         "kill_voted": [
@@ -495,8 +495,8 @@
 
 
     "teams": {
-        "village": "village",
-        "wolf": "wolf"
+        "village": "Village",
+        "wolf": "Wolf"
     },
 
 
@@ -518,7 +518,8 @@
         },
 
         "cursed": {
-            "sg": "cursed"
+            "sg": "cursed",
+            "pl": "cursed"
         }
     },
 
@@ -526,6 +527,9 @@
     "totems": {
 
     },
+
+
+    "game_name": "Werewolf",
 
 
     "plurals": {

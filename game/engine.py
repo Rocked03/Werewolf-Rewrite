@@ -79,11 +79,35 @@ class GameEngine:
 
     def load_language(self, language):
         file = 'lang/{}.json'.format(language)
+        
         if not os.path.isfile(file):
             file = 'lang/en.json'
             print("Could not find language file {}.json, fallback on en.json".format(language))
+        
         with open(file, 'r', encoding='utf-8') as f:
             langfile = json.load(f)
+
+        if file != 'lang/en.json':
+            with open('lang/en.json', 'r', encoding='utf-8') as f:
+                enlang = json.load(f)
+
+            for head in ['phrases', 'teams', 'roles', 'totmems']:
+                if head in langfile:
+                    for key, value in langfile[head].items():
+                        if key not in enlang[head]:
+                            print(f'Could not find key "{key}" ({head})')
+                            continue
+                        enlang[head][key] = value
+
+            for head in ['plurals']:
+                if head in langfile:
+                    for key, value in langfile[head].items():
+                        enlang[head][key] = value
+
+            if 'game_name' in langfile: enlang['game_name'] = langfile['game_name']
+
+            langfile = enlang
+
         return langfile
 
     def load_gamemodes(self):
@@ -982,6 +1006,7 @@ class GameEngine:
         kwargs['villagers'] = self.lgr('villager', 'pl')
         kwargs['wolves'] = self.lgr('wolf', 'pl')
         kwargs['prefix'] = BOT_PREFIX
+        kwargs['game_name'] = ref['game_name']
 
         text = text.format(*args, **{k:v for k, v in kwargs.items() if f'{{{k}}}' in text})
 

@@ -15,7 +15,6 @@ from settings import *
 # ---- other non priority
 # logs
 # roles/perms
-# multi lang support
 # more roles
 # notify
 # stasis
@@ -639,7 +638,7 @@ class Game(commands.Cog, name="Game"):
             elif not session.in_session: msgtype = 'list'
             else: msgtype = 'gmroles'
         elif param == 'list': msgtype = 'list'
-        elif len(self._autocomplete(param, self.roles())[0]) == 1: msgtype = 'role'
+        elif len(self._autocomplete(param, [self.lgr(r) for r in self.roles()])[0]) == 1: msgtype = 'role'
         else: msgtype = 'gamemode'
 
         if msgtype == 'list':
@@ -649,8 +648,10 @@ class Game(commands.Cog, name="Game"):
             return await ctx.reply(self.role_info(param))
 
         if msgtype in ['gamemode', 'gmroles']:
+            num_players = -1
+
             if msgtype == 'gmroles':
-                gamemode = session.gamemode
+                gamemode = session.gamemode['name']
             else:
                 gamemode = 'default'
                 params = param.split(' ')
@@ -658,12 +659,10 @@ class Game(commands.Cog, name="Game"):
                 choices, _ = self._autocomplete(params[0], list(self.gamemodes.keys()))
                 if len(choices) == 1: gamemode = choices[0]
 
-            num_players = -1
-
-            if params[0].isdigit():
-                num_players = int(params[0])
-            if len(params) == 2 and params[1].isdigit():
-                num_players = params[1]
+                if params[0].isdigit():
+                    num_players = int(params[0])
+                if len(params) == 2 and params[1].isdigit():
+                    num_players = params[1]
 
             if num_players == -1:
                 return await ctx.reply(self.role_table(gamemode))
@@ -674,7 +673,7 @@ class Game(commands.Cog, name="Game"):
 
             msg = [f'Roles for **{num_players}** in gamemode **{gamemode}**']
             msg.append('```py')
-            msg += [f"{role}: {count}" for role, count in game_roles.items()]
+            msg += [f"{self.lgr(role)}: {count}" for role, count in game_roles.items()]
             msg.append('```')
 
             return await ctx.reply('\n'.join(msg))
@@ -682,15 +681,15 @@ class Game(commands.Cog, name="Game"):
     def role_list(self):
         msg = []
         msg.append("```ini")
-        msg.append(f"[{self.lgt('village').capitalize()}] {', '.join(self.roles('village'))}")
-        msg.append(f"[{self.lgt('wolf').capitalize()}] {', '.join(self.roles('wolf'))}")
-        # msg.append(f"[self.lgt('neutral').capitalize()] {', '.join(self.roles('neutral'))}")
+        msg.append(f"[{self.lgt('village').capitalize()}] {', '.join([self.lgr(r) for r in self.roles('village')])}")
+        msg.append(f"[{self.lgt('wolf').capitalize()}] {', '.join([self.lgr(r) for r in self.roles('wolf')])}")
+        # msg.append(f"[self.lgt('neutral').capitalize()] {', '.join([self.lgr(r) for r in self.roles('neutral')])}")
         msg.append(f"[Templates] {', '.join(self.templates)}")
         msg.append("```")
         return '\n'.join(msg)
 
     def role_info(self, string):
-        role = self._autocomplete(string, self.roles())[0][0]
+        role = self._autocomplete(string, [self.lgr(r) for r in self.roles()])[0][0]
         roleobj = self.roles_list[role]
         msg = []
         msg.append(f"**Role name**: {self.lgr(role)}")
@@ -711,7 +710,7 @@ class Game(commands.Cog, name="Game"):
         msg.append(' ' * (WIDTH + 2) + ', '.join(f"{x:02d}" for x in range(gmobj['min_players'], gmobj['max_players'] + 1)))
         for role in self.engine.sort_roles(role_dict):
             ns = role_dict[role]
-            msg.append(f"{role}{' ' * (WIDTH - len(role))}: {', '.join((f'''{' ' if n < 10 else ''}{n}''') for n in ns)}")
+            msg.append(f"{self.lgr(role)}{' ' * (WIDTH - len(role))}: {', '.join((f'''{' ' if n < 10 else ''}{n}''') for n in ns)}")
         msg.append('```')
 
         return '\n'.join(msg)
@@ -995,12 +994,13 @@ class Game(commands.Cog, name="Game"):
 
         msg = [f"**Gamemode**: {session.gamemode['name']}\n```diff"]
         for player in session.players:
-            msg.append(f"{'+' if player.alive else '-'} {self.get_name(player)} ({player.id}): {player.role}; template: {str(', '.join(str(x) for x in self.templates if getattr(player.template, x)))}; action: {str(player.targets)}")
+            msg.append(f"{'+' if player.alive else '-'} {self.get_name(player)} ({player.id}): {self.lgr(player.role)}; template: {str(', '.join(self.lgr(x) for x in self.templates if getattr(player.template, x)))}; action: {str(player.targets)}")
         msg.append("```")
 
         # await ctx.reply('\n'.join(msg))
         try:
             await ctx.author.send('\n'.join(msg))
+            await ctx.message.add_reaction('👍')
         except discord.Forbidden:
             await ctx.send(self.lg('dm_off', mention=player.mention))
 
@@ -1218,7 +1218,7 @@ class Game(commands.Cog, name="Game"):
         if player is None: return await ctx.reply(f"**{target[0].display_name} ({target[0].id})** is not in-game!")
 
         role = ' '.join(target[1:]).lower()
-        if role not in self.roles():
+        if role not in [self.lgr(r) for r in self.roles()]:
             return await ctx.reply(f"Cannot find role named `{role}`")
 
         newrole = self.roles_list[role](player.player)

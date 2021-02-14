@@ -3,6 +3,10 @@ config.py
 settings.py
 .env
 
+# Language files
+lang/*
+!lang/en.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
