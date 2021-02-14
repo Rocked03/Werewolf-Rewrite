@@ -31,7 +31,7 @@ async def on_ready():
     print('Logged in as')
     print(bot.user.name)
     print(bot.user.id)
-    print(datetime.now().strftime("%d/%m/%Y %I:%M:%S%p UTC"))
+    print(datetime.utcnow().strftime("%d/%m/%Y %I:%M:%S%p UTC"))
     print('------')
     await bot.change_presence(status=discord.Status.online, activity=discord.Game(name=PLAYING_MESSAGE))
     bot.uptime = datetime.utcnow()

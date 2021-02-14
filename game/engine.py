@@ -254,6 +254,7 @@ class GameEngine:
             end_stats = self.end_game_stats(session)
 
             session = await self.end_game(
+                session=session,
                 win_team=win_team,
                 reason=win_lore,
                 winners=winners,
@@ -273,12 +274,13 @@ class GameEngine:
                 # totems
 
                 role_msg, info_msg = self.send_role_info(session, player)
-                try:
-                    if session.night_count == 0: await player.send(role_msg)
-                    if info_msg:
-                        await player.send(info_msg)
-                except discord.Forbidden:
-                    await session.send(self.lg('role_dm_off', mention=player.mention))
+                if role_msg:
+                    try:
+                        if session.night_count == 0: await player.send(role_msg)
+                        if info_msg:
+                            await player.send(info_msg)
+                    except discord.Forbidden:
+                        await session.send(self.lg('role_dm_off', mention=player.mention))
 
             session = await self.session_update('push', session)
 
@@ -447,9 +449,9 @@ class GameEngine:
             await asyncio.sleep(0.1)
 
         if not lynched_player and self.in_session(session):
-            vote_dict = self.get_votes(session)
+            vote_dict, totem_dict, able_players = self.get_votes(session)
             max_votes = max(vote_dict.values())
-            max_voted = [p for p, c in vote_dict if c == max_votes and c != 'abstain']
+            max_voted = [p for p, c in vote_dict.items() if c == max_votes and c != 'abstain']
 
             if len(max_voted) == 1:
                 lynched_player = max_voted[0]
@@ -517,7 +519,7 @@ class GameEngine:
 
 
                     lynchers_team = [x.team for x in session.players if x.alive and x.vote == lynched_player]
-                    session = player_death(lynched_player, 'lynch', 'wolf' if lynchers_team.count('wolf') > lynchers_team.count('village') else 'village')
+                    session = await self.player_death(session, lynched_player, 'lynch', 'wolf' if lynchers_team.count('wolf') > lynchers_team.count('village') else 'village')
 
                 # fool stuff
 
@@ -534,7 +536,7 @@ class GameEngine:
 
         max_votes = max(vote_dict.values())
         if max_votes >= len(able_players) // 2 + 1:  # majority
-            max_voted = [p for p, c in vote_dict if c == max_votes]
+            max_voted = [p for p, c in vote_dict.items() if c == max_votes]
             lynched_player = random.choice(max_voted)
 
         if (datetime.utcnow() - session.day_start).total_seconds() > self.dtmout:
@@ -547,7 +549,7 @@ class GameEngine:
 
         return session, lynched_player, totem_dict, warn
 
-    async def end_game(self, *, win_team=None, reason=None, winners=None, end_stats=None):
+    async def end_game(self, *, session, win_team=None, reason=None, winners=None, end_stats=None):
         if not session.in_session: return
 
         session.in_session = False
@@ -560,10 +562,11 @@ class GameEngine:
                 session.night_elapsed = datetime.utcnow() - session.night_start
 
         msg = [self.lg('end_game',
-            mentions = ' '.join(self.sort_players([x.mention for x in session.players])),
+            mentions = ' '.join([x.mention for x in self.sort_players(session.players)]),
             night_length = self.timedeltatostr(session.night_elapsed),
             day_length = self.timedeltatostr(session.day_elapsed),
-            game_length = self.timedeltatostr(session.day_elapsed + session.night_elapsed)
+            game_length = self.timedeltatostr(session.day_elapsed + session.night_elapsed),
+            reason=reason
         )]
 
         if winners:
@@ -575,7 +578,7 @@ class GameEngine:
             else:
                 msg.append(self.lg('end_game_winners',
                     pl=self.pl(len(winners)),
-                    listing=self.listing(winners)
+                    listing=self.listing([x.mention for x in winners])
                 ))
 
         else:
@@ -584,7 +587,7 @@ class GameEngine:
         await session.send('\n'.join(msg))
 
         for player in session.players:
-            await self.player_death(session, player, 'game end', 'bot')
+            session = await self.player_death(session, player, 'game end', 'bot')
 
 
         # unlock lobby
@@ -805,7 +808,7 @@ class GameEngine:
  
     async def player_death(self, session, player, reason, kill_team):
         ingame = 'IN GAME'
-        if session.in_session and reason != 'game cancel':
+        if session.in_session and reason != 'game cancel' or reason == 'game end':
             player.alive = False
 
             # lover stuff
@@ -870,7 +873,7 @@ class GameEngine:
 
         return wolf_deaths, killed_dict
 
-   
+
     def send_role_info(self, session, player):
         if player.alive:
             rolename = player.role if player.role not in [] else 'villager'
@@ -920,6 +923,8 @@ class GameEngine:
 
         elif False:
             return '', ''  # vengeful ghost
+        else:
+            return '', ''
 
     def get_votes(self, session):
         totem_dict = {}

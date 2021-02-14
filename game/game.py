@@ -311,15 +311,15 @@ class Game(commands.Cog, name="Game"):
         return await session.send(msg)
 
 
-    @commands.command(aliases=['v'])
-    async def vote(self, ctx, *, target = None):
+    @commands.command(name='vote', aliases=['v'])
+    async def _vote(self, ctx, *, target = None):
         session = self.find_session_player(ctx.author.id)
         if not session:
             return await ctx.reply(self.lg('no_session_user'))
 
         if session.in_session:
             cmd = self.bot.get_command("lynch")
-            await cmd(ctx, target)
+            await cmd(ctx, target=target)
             return
 
         if ctx.channel.id != session.id:
@@ -328,6 +328,7 @@ class Game(commands.Cog, name="Game"):
         if target is None:
             cmd = self.bot.get_command("votes")
             await cmd(ctx)
+            return
 
         if target.lower().replace(' ', '') in sum(list(self.reveal_aliases.values()), []):
             msg = await self.vote_reveal(session, ctx.author.id, target)
@@ -454,8 +455,8 @@ class Game(commands.Cog, name="Game"):
                 msg.append("Current votes: ```\n")
                 for voted, voters in {x: c for x, c in vote_dict.items() if x != 'abstain'}.items():
                     votee = self.find_player(session, voted)
-                    msg.append(f"{self.get_name(votee)} ({votee.id}) ({len(voters)} vote{s(len(voters))}): {', '.join(self.get_name(x) for x in voters)}")
-                msg.append(f"{len(abstainers)} vote{self.s(len(abstainers))} to abstain: {', '.join(self.get_name(x) for x in voters)}")
+                    msg.append(f"{self.get_name(votee)} ({votee.id}) ({len(voters)} vote{self.s(len(voters))}): {', '.join(self.get_name(x) for x in voters)}")
+                msg.append(f"{len(abstainers)} vote{self.s(len(abstainers))} to abstain: {', '.join(self.get_name(x) for x in vote_dict['abstain'])}")
                 msg.append('```')
 
             return await ctx.reply('\n'.join(msg))
@@ -498,16 +499,16 @@ class Game(commands.Cog, name="Game"):
         ))
 
 
-        orig_roles = dict(session.original_roles_amount)
+        orig_roles = self.engine.sort_roles_dict(session.original_roles_amount)
         # traitor stuff
 
-        role_dict = {x: [0, 0] for x in self.roles_list}
+        role_dict = self.engine.sort_roles_dict({x: [0, 0] for x in self.roles_list})
         for player in session.players:
             role = player.role
             role_dict[role][0] += 1
             role_dict[role][1] += 1
 
-        msg.append("Total roles: " + ', '.join(f"{name}: {count}" for name, count in self.engine.sort_roles_dict(orig_roles).items()))
+        msg.append("Total roles: " + ', '.join(f"{self.lgr(name, 'pl')}: {count}" for name, count in orig_roles.items()))
 
         if session.reveal:
             for role in list(role_dict):
@@ -529,7 +530,7 @@ class Game(commands.Cog, name="Game"):
                 if template in orig_roles:
                     del orig_roles[template]
 
-            msg.append("Current roles: " + ', '.join(f"{self.lgr(role, 'sg' if count == 1 else 'pl')}: {count[0] if count[0] == count[1] else f'{count[0]}-{count[1]}'}" for role, count in role_dict.items()))
+            msg.append("Current roles: " + ', '.join(f"{self.lgr(role, 'pl')}: {count[0] if count[0] == count[1] else f'{count[0]}-{count[1]}'}" for role, count in role_dict.items()))
 
         msg.append('```')
 
@@ -721,10 +722,10 @@ class Game(commands.Cog, name="Game"):
         if not player.alive: return
 
         if session.night: return
-        if (datetime.utcnow() - session.day_start).total_seconds <= 2: return
+        if (datetime.utcnow() - session.day_start).total_seconds() <= 2: return
 
         if target is None:
-            cmd = bot.get_command("votes")
+            cmd = self.bot.get_command("votes")
             await cmd(ctx)
             return
 
@@ -779,13 +780,16 @@ class Game(commands.Cog, name="Game"):
                 if not ctx.guild:
                     return await self.use_in_channel(session, ctx)
 
+                if player.vote is None:
+                    return await ctx.reply(self.lg('no_vote'))
+
                 player.vote = None
                 session = await self.player_update(session, player)
 
                 return await ctx.reply(self.lg('retract_vote', pl=''))
 
             else:
-                if player.role in self.COMMANDS_FOR_ROLE['kill']:
+                if 'kill' in player.commands:
                     if ctx.guild:
                         try:
                             return await player.user.send(self.lg('use_in_dm', command=ctx.invoked_with))
@@ -818,7 +822,7 @@ class Game(commands.Cog, name="Game"):
         # evil village
 
         if session.day_start == timedelta(0):
-            return ctx.reply(self.lg('abstain_first_day'))
+            return await ctx.reply(self.lg('abstain_first_day'))
 
         # injured
 
@@ -826,7 +830,7 @@ class Game(commands.Cog, name="Game"):
         session = await self.player_update(session, player)
         # log
 
-        return ctx.reply(self.lg('abstain', name=self.get_name(player)))
+        return await ctx.reply(self.lg('abstain', name=self.get_name(player)))
 
 
 
@@ -946,7 +950,7 @@ class Game(commands.Cog, name="Game"):
 
         msg = [f"**Gamemode**: {session.gamemode['name']}\n```diff"]
         for player in session.players:
-            msg.append(f"{'+' if player else '-'} {self.get_name(player)} ({player.id}): {player.role}; template: {str(', '.join(str(x) for x in self.templates if getattr(player.template, x)))}; action: {str(player.targets)}")
+            msg.append(f"{'+' if player.alive else '-'} {self.get_name(player)} ({player.id}): {player.role}; template: {str(', '.join(str(x) for x in self.templates if getattr(player.template, x)))}; action: {str(player.targets)}")
         msg.append("```")
 
         await ctx.reply('\n'.join(msg))
@@ -957,7 +961,7 @@ class Game(commands.Cog, name="Game"):
     @commands.group(aliases=['f'])
     async def force(self, ctx):
         if not ctx.invoked_subcommand:
-            await ctx.send_help()
+            await ctx.send_help(ctx.command)
 
     @force.command(aliases=['j'])
     async def join(self, ctx, session: typing.Union[commands.TextChannelConverter, commands.UserConverter, PseudouserConverter], target: commands.Greedy[typing.Union[commands.UserConverter, PseudouserConverter]] = None):
@@ -1063,6 +1067,16 @@ class Game(commands.Cog, name="Game"):
         # log
 
     @force.command()
+    async def day(self, ctx):
+        cmd = self.bot.get_command("force timeset")
+        await cmd(ctx, 'day')
+
+    @force.command()
+    async def night(self, ctx):
+        cmd = self.bot.get_command("force timeset")
+        await cmd(ctx, 'night')
+
+    @force.command()
     async def target(self, ctx, session: typing.Union[commands.TextChannelConverter, commands.UserConverter, PseudouserConverter], target: commands.Greedy[typing.Union[commands.UserConverter, PseudouserConverter, str]] = None):
         if isinstance(session, int): session = self.find_session_channel(session)
         else:
@@ -1080,21 +1094,52 @@ class Game(commands.Cog, name="Game"):
         targeted = []
         for t in target[1:]:
             td = self.find_player(session, t.id)
-            if td is None: return await ctx.reply(f"**{t.display_name} ({t.id})** is not in-game!")
+            if td is None: return await ctx.reply(f"**{t} ({t.id})** is not in-game!")
             targeted.append(td)
 
         if not any(x in ['kill'] for x in targeter.commands):
-            return await ctx.reply(f"**{targeter.display_name} ({targeter.id})** can't target anything!")
+            return await ctx.reply(f"**{self.get_name(targeter)} ({targeter.id})** can't target anything!")
 
         session = await self.session_update('pull', session)
-        player = self.find_player(session, player.id)
-        player.target = [x.id for x in targeted]
+        player = self.find_player(session, targeter.id)
+        player.targets = [x.id for x in targeted]
         session = await self.player_update(session, player)
 
         listing = self.listing([f"{x.mention} ({x.id})" for x in targeted])
 
         await ctx.reply(f"Set {targeter.mention}'s ({targeter.id}) target(s) to {listing}")
         # log
+
+    @force.command()
+    async def vote(self, ctx, session: typing.Union[commands.TextChannelConverter, commands.UserConverter, PseudouserConverter], target: commands.Greedy[typing.Union[commands.UserConverter, PseudouserConverter, str]] = None):
+        if isinstance(session, int): session = self.find_session_channel(session)
+        else:
+            a = session
+            session = self.find_session_channel(ctx.channel.id)
+            if target is not None: target = [a] + target
+            else: target = [a]
+        if not session: return await ctx.reply(self.lg('no_session_channel'))
+
+        if not session.in_session and not session.day: return await ctx.reply("You can only force votes during day in-game.")
+
+        if len(target) != 2: return await ctx.reply("Please specify two users - the targeter and the targeted player.")
+
+        targeter = self.find_player(session, target[0].id)
+        if targeter is None: return await ctx.reply(f"**{target[0].display_name} ({target[0].id})** is not in-game!")
+
+        targeted = target[1]
+        td = self.find_player(session, targeted.id)
+        if td is None: return await ctx.reply(f"**{targeted.display_name} ({targeted.id})** is not in-game!")
+        targeted = td
+
+        session = await self.session_update('pull', session)
+        player = self.find_player(session, targeter.id)
+        player.vote = targeted.id
+        session = await self.player_update(session, player)
+
+        await ctx.reply(f"Set {targeter.mention}'s ({targeter.id}) vote to {targeted.mention} ({targeted.id})")
+        # log
+
 
     @force.command()
     async def role(self, ctx, session: typing.Union[commands.TextChannelConverter, commands.UserConverter, PseudouserConverter], target: commands.Greedy[typing.Union[commands.UserConverter, PseudouserConverter, str]] = None):
@@ -1159,7 +1204,7 @@ class Game(commands.Cog, name="Game"):
         player = self.find_player(session, target[0].id)
         current = getattr(player.template, template)
         setattr(player.template, template, not current)
-        session = await self.player_update(session, newrole)
+        session = await self.player_update(session, player)
 
         await ctx.reply(f"Toggled {player.mention}'s' ({player.id}) `{template}` template to `{not current}`")
         # log
