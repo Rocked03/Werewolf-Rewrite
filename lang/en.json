@@ -134,7 +134,7 @@
 
 
         "end_role_reveal": [
-            "The <{role}|{pl}> <was|{pl} {listing}."
+            "The **<{role}|{pl}>** <was|{pl}> {listing}."
         ],
 
 
@@ -147,7 +147,7 @@
         ],
 
         "end_game_winners": [
-            "The winner <is|{pl}> {listing}!"
+            "The winner{s} <is|{pl}> {listing}!"
         ],
 
 

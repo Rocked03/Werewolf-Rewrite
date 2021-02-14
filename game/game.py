@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from discord.ext import commands
 from wonderwords import RandomWord # pip wonderwords
 
-from .engine import GameEngine
+from .engine import GameEngine, GameState
 from .roles.player import Player, Bot
 
 from config import *
@@ -258,14 +258,14 @@ class Game(commands.Cog, name="Game"):
             else: msg = ctx.message
 
             session = await self.session_update('pull', session)
-            session, msg2 = self.player_leave(session, self.find_player(session, ctx.author.id))
+            session, msg2 = await self.player_leave(session, self.find_player(session, ctx.author.id))
             session = await self.player_update(session, self.find_player(session, ctx.author.id))
 
             return await msg.reply(msg2)
 
         else:
             session = await self.session_update('pull', session)
-            session, msg = self.preplayer_leave(session, self.find_preplayer(session, ctx.author.id))
+            session, msg = await self.preplayer_leave(session, self.find_preplayer(session, ctx.author.id))
             session = await self.session_update('push', session, ['preplayers'])
 
             return await ctx.reply(msg)
@@ -997,7 +997,7 @@ class Game(commands.Cog, name="Game"):
                     continue
 
                 session = await self.session_update('pull', session)
-                session, msg = self.preplayer_leave(session, self.find_preplayer(session, t.id))
+                session, msg = await self.preplayer_leave(session, self.find_preplayer(session, t.id))
 
                 await ctx.reply(f"**[{name}]**: {msg}")
         else:
@@ -1012,7 +1012,7 @@ class Game(commands.Cog, name="Game"):
                     continue
 
                 session = await self.session_update('pull', session)
-                session, msg = self.player_leave(session, self.get_player(session, t.id))
+                session, msg = await self.player_leave(session, self.get_player(session, t.id))
                 session = await self.player_update(session, self.get_player(session, t.id))
 
                 await ctx.reply(f"**[{name}]**: {msg}")
@@ -1347,49 +1347,46 @@ class Game(commands.Cog, name="Game"):
             await asyncio.sleep(1)
             session = await self.session_update('pull', session)
 
-        while player in [x.id for x in session.players] and not session.in_session and self.find_player(session, player):
-            if not self.find_player(session, player).alive: break
+        if not session.in_session:
+            return
 
-            async def async_find_player(session, player):
-                session = await self.session_update('pull', session)
-                player = self.find_player(session, player)
+        session = await self.session_update('pull', session)
+        while session.phase == GameState.GAME_SETUP:
+            await asyncio.sleep(1)
+            session = await self.session_update('pull', session)
 
-            def check(m):
-                if m.author.id == player and m.channel.id == session.id:
-                    return True
-                self.bot.loop.create_task(async_find_player(session, player))
-                alive = player.alive if player else None
-                return any([session.in_session, not alive, not player])
 
+        session = await self.session_update('pull', session)
+        player = self.find_player(session, player)
+        while player.id in [x.id for x in session.players] and session.in_session and self.find_player(session, player.id) and player.alive and player.player.real:
+            check = lambda m: m.author.id == player.id and m.channel.id == session.id
             try: msg = await self.bot.wait_for('message', timeout=PLAYER_TIMEOUT, check=check)
             except asyncio.TimeoutError: msg = None
-            else: msg = None if msg.author.id != player or msg.channel.id != session.id else msg
 
             session = await self.session_update('pull', session)
-            if msg is None and self.find_player(session, player) and sesssion.in_session:
-                p = self.find_player(session, player)
-                if p.alive:
-                    await session.send(self.lg('idle_lobby', mention=f"<@{player}>"))
-                    await p.send(self.lg('idle_dm', channel=session.mention))
+            if msg is None and self.find_player(session, player.id) and self.find_player(session, player.id).alive and session.in_session:
+                player = self.find_player(session, player.id)
+                if player.alive:
+                    await session.send(self.lg('idle_lobby', mention=player.mention))
+                    await player.send(self.lg('idle_dm', channel=session.mention))
 
                     try: msg = await self.bot.wait_for('message', timeout=PLAYER_TIMEOUT2, check=check)
                     except asyncio.TimeoutError: msg = None
-                    else: msg = None if msg.author.id != player or msg.channel.id != session.id else msg
 
                     session = await self.session_update('pull', session)
-                    if msg is None and self.find_player(session, player) and sesssion.in_session:
-                        p = self.find_player(session, player)
-                        if p.alive:
-                            name = self.get_name(p)
+                    if msg is None and self.find_player(session, player.id) and session.in_session:
+                        player = self.find_player(session, player.id)
+                        if player.alive:
+                            name = self.get_name(player)
                             if session.reveal:
-                                await session.send(self.lg('idle', name=name, role=p.death_role))
+                                await session.send(self.lg('idle', name=name, role=player.death_role))
                             else:
                                 await session.send(self.lg('idle_no_reveal', name=name))
 
                             # STASIS
 
                             session = await self.session_update('pull', session)
-                            session = self.engine.player_death(session, p, 'idle', 'bot')
+                            session = await self.engine.player_death(session, player, 'idle', 'bot')
 
                             # TRAITOR
 
@@ -1401,7 +1398,7 @@ class Game(commands.Cog, name="Game"):
         session.first_join = datetime.utcnow()
         session = await self.session_update('push', session, ['first_join'])
 
-        while not session.in_session and session.player_count and datetime.utcnow() - session.first_join < timedelta(seconds=GAME_START_TIMEOUT):
+        while not session.in_session and session.player_count and (datetime.utcnow() - session.first_join).total_seconds() < GAME_START_TIMEOUT:
             await asyncio.sleep(0.1)
             session = await self.session_update('pull', session)
 
@@ -1411,7 +1408,7 @@ class Game(commands.Cog, name="Game"):
             # unlock lobby
 
             for player in session.preplayers:
-                session = self.engine.player_death(session, player, 'game cancel', 'bot')
+                session = await self.engine.player_death(session, player, 'game cancel', 'bot')
 
             # session = await self.session_update('push', session)
 

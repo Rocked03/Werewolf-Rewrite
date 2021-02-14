@@ -110,7 +110,7 @@ class GameEngine:
 
 
     async def run_game(self, session):
-        session.phase =GameState.GAME_SETUP
+        session.phase = GameState.GAME_SETUP
 
         # lobby perms
 
@@ -150,6 +150,9 @@ class GameEngine:
 
 
         # LOCK LOBBY
+
+        session.in_session = True
+        session = await self.session_update('push', session)
 
         if player_count < session.gamemode['min_players'] or player_count > session.gamemode['max_players']:
             session.gamemode = self.gamemodes['default']
@@ -569,6 +572,8 @@ class GameEngine:
             reason=reason
         )]
 
+        msg.append(end_stats)
+
         if winners:
             # crazed shaman stuff
 
@@ -577,14 +582,15 @@ class GameEngine:
                 msg.append(self.lg('end_game_no_winners'))
             else:
                 msg.append(self.lg('end_game_winners',
+                    s=self.s(len(winners)),
                     pl=self.pl(len(winners)),
-                    listing=self.listing([x.mention for x in winners])
+                    listing=self.listing([f"**{self.get_name(x)}**" for x in winners])
                 ))
 
         else:
             msg.append(self.lg('end_game_no_winners'))
 
-        await session.send('\n'.join(msg))
+        await session.send('\n\n'.join(msg))
 
         for player in session.players:
             session = await self.player_death(session, player, 'game end', 'bot')
@@ -650,7 +656,7 @@ class GameEngine:
         return win_team, win_lore, winners
 
     def end_game_stats(self, session):
-        role_msg = ''
+        role_msg = []
         role_dict = {}
         for player in session.players:
             role_dict[player.role] = []
@@ -664,15 +670,15 @@ class GameEngine:
             if len(value) == 0:
                 pass
 
-            role_msg += self.lg('end_role_reveal', 
+            role_msg.append(self.lg('end_role_reveal', 
                 role=key,
                 pl=self.pl(len(value)),
                 listing=self.listing([f"**{self.get_name(x)}**" for x in value])
-            )
+            ))
 
         # lover stuff
 
-        return role_msg
+        return ' '.join(role_msg)
 
 
 
