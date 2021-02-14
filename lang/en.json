@@ -240,6 +240,10 @@
             "{players}, the game has taken too long to start and has been cancelled. If you are still here and would like to start a new game, please do `{prefix}join` again."
         ],
 
+        "start_timeout_left": [
+            "There is **{time}** left to start the game until it will be automatically cancelled. The game timeout length is currently set to **{timeout}**."
+        ],
+
         "idle_lobby": [
             "**{mention}, you have been idling for a while. Please say something soon or you might be declared dead.**"
         ],
@@ -416,7 +420,7 @@
         ],
 
         "stats_info": [
-            "It is now **{daynight}time**. Using the **{gamemode}** gamemode."
+            "It is currently **{daynight}time**. Using the **{gamemode}** gamemode."
         ],
 
         "stats_player_count": [
@@ -433,6 +437,10 @@
 
         "wolfchat_no_dm": [
             "{player} has their DMs off! Cannot send {wolfchat} message to them."
+        ],
+
+        "game_time": [
+            "It is now **{daynight}**. There is **{time}** until {change}."
         ],
 
 

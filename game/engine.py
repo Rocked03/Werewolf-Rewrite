@@ -295,7 +295,7 @@ class GameEngine:
             session = await self.session_update('push', session)
 
             if self.in_session(session):
-                await session.send(self.lg('day_summary', time=self.timedeltatostr(session.latest_day_elapsed)))
+                await session.send(self.lg('day_summary', time=self.timedelta_to_str(session.latest_day_elapsed)))
 
                 # entranced stuff
 
@@ -412,7 +412,7 @@ class GameEngine:
         if session.in_session and not self.win_condition(session):
             killed_msg_final = '\n'.join(killed_msg)
             await session.send(
-                self.lg('night_summary', time=self.timedeltatostr(session.latest_night_elapsed))
+                self.lg('night_summary', time=self.timedelta_to_str(session.latest_night_elapsed))
                 + f"\n\n{killed_msg_final}"
             )
 
@@ -566,9 +566,9 @@ class GameEngine:
 
         msg = [self.lg('end_game',
             mentions = ' '.join([x.mention for x in self.sort_players(session.players)]),
-            night_length = self.timedeltatostr(session.night_elapsed),
-            day_length = self.timedeltatostr(session.day_elapsed),
-            game_length = self.timedeltatostr(session.day_elapsed + session.night_elapsed),
+            night_length = self.timedelta_to_str(session.night_elapsed),
+            day_length = self.timedelta_to_str(session.day_elapsed),
+            game_length = self.timedelta_to_str(session.day_elapsed + session.night_elapsed),
             reason=reason
         )]
 
@@ -1008,8 +1008,7 @@ class GameEngine:
 
     listing = lambda self, x, c=False: ' and '.join([y for y in [', '.join(x[:-1]) + (',' if len(x[:-1]) > 1 else '')] + [x[-1]] if y]) + (',' if c else '')
 
-    def timedeltatostr(self, x):
-        return "{0:02d}:{1:02d}".format(x.seconds // 60, x.seconds % 60)
+    timedelta_to_str = lambda self, x: "{0:02d}:{1:02d}".format(x.seconds // 60, x.seconds % 60)
 
 
     def sort_roles(self, role_list):

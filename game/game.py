@@ -13,10 +13,8 @@ from settings import *
 # TODO MUST
 # 
 # ---- other non priority
-# time
 # logs
 # roles/perms
-# command descriptions
 # multi lang support
 # more roles
 # notify
@@ -717,6 +715,40 @@ class Game(commands.Cog, name="Game"):
         msg.append('```')
 
         return '\n'.join(msg)
+
+
+    @commands.command()
+    async def time(self, ctx):
+        """Checks in-game time."""
+        session = self.find_session_player(ctx.author.id)
+        if not session: return await ctx.reply(self.lg('no_session_user'))
+
+        if session.channel.id != ctx.channel.id and ctx.guild: return
+
+        if session.in_session:
+            if session.day:
+                seconds = timedelta(seconds=self.engine.dtmout) - (datetime.utcnow() - session.day_start)
+                timeofday = 'daytime'
+                sunstate = 'sunset'
+            else:
+                seconds = timedelta(seconds=self.engine.ntmout) - (datetime.utcnow() - session.night_start)
+                timeofday = 'nighttime'
+                sunstate = 'sunrise'
+            return await ctx.reply(self.lg('game_time',
+                daynight=timeofday,
+                time=self.engine.timedelta_to_str(seconds),
+                change=sunstate
+            ))
+
+        else:
+            if session.player_count > 0:
+                timeleft = timedelta(seconds=GAME_START_TIMEOUT - (datetime.utcnow() - session.first_join).seconds)
+                return await ctx.reply(self.lg('start_timeout_left',
+                    time=self.engine.timedelta_to_str(timeleft),
+                    timeout=self.engine.timedelta_to_str(timedelta(seconds=GAME_START_TIMEOUT))
+                ))
+            else:
+                return await ctx.reply(self.lg('no_session_channel_join'))
 
 
     @commands.command()
