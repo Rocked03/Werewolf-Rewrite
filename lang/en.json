@@ -402,6 +402,10 @@
             "{mention}, Please make sure you have enabled `Allow direct messages from server members` under Privacy Settings for this server so I can DM your role. After that, you may use the command `{prefix}myrole` to resend your role."
         ],
 
+        "dm_off": [
+            "{mention}, Please make sure you have enabled `Allow direct messages from server members` under Privacy Settings for this server so I can DM you."
+        ],
+
 
         "confirm_yes": [
             "yes", "y"
@@ -492,7 +496,7 @@
         "seer": {
             "sg": "seer",
             "pl": "seers",
-            "desc": "Your job is to detect the wolves; you may have a vision once per night. Type `see <player>` in private message to see their role."
+            "desc": "Your job is to detect the wolves; you may have a vision once per night. Type `see <player>` in DMs to see their role."
         },
         "villager": {
             "sg": "villager",
@@ -502,12 +506,11 @@
         "wolf": {
             "sg": "wolf",
             "pl": "wolves",
-            "desc": "Your job is to kill all of the villagers. Type `kill <player>` in private message to kill them."
+            "desc": "Your job is to kill all of the villagers. Type `kill <player>` in DMs to kill them."
         },
 
         "cursed": {
-            "sg": "cursed",
-            "desc": "TBA"
+            "sg": "cursed"
         }
     },
 
