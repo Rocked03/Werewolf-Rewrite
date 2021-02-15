@@ -10,18 +10,18 @@ from config import *
 from settings import *
 
 
-# TODO MUST
+# ---- top priority
 # 
-# ---- other non priority
+# ---- medium priority
 # logs
 # roles/perms
-# more roles
 # notify
 # stasis
+# info
+# ---- low priority
+# more roles
 # clean up command checks (single function?)
 # nicer message formats (eg embeds and stuff)
-# command aliases
-# info
 
 
 
@@ -156,6 +156,13 @@ class Game(commands.Cog, name="Game"):
         session = self.find_session_channel(ctx.channel.id)
         if not session: return await ctx.reply(self.lg('no_session_channel'))
 
+        session2 = self.find_session_player(ctx.author.id)
+        if session2 is not None: 
+            if session2.id == session.id:
+                return await ctx.reply(self.lg('already_in'))
+            else:
+                return await ctx.reply(self.lg('already_in_elsewhere', channel=session.mention))
+
         # STASIS
 
         successful, msg = await self.player_join(session, ctx.author)
@@ -235,7 +242,7 @@ class Game(commands.Cog, name="Game"):
             return [p for p in ctx.bot.pseudousers if int(argument) == p.id][0]
 
 
-    @commands.command(aliases=['quit', 'q'])
+    @commands.command(aliases=['l', 'quit', 'q'])
     async def leave(self, ctx, force=None):
         """Leaves the current game. If you need to leave, please do it before the game starts."""
         session = self.find_session_player(ctx.author.id)
@@ -615,6 +622,9 @@ class Game(commands.Cog, name="Game"):
         if ctx.channel.id != session.id and ctx.guild:
             return
 
+        if not session.in_session:
+            return await ctx.reply(self.lg('not_in_session'))
+
         player = self.find_player(session, ctx.author.id)
 
         role_msg, info_msg = self.engine.send_role_info(session, player)
@@ -716,7 +726,7 @@ class Game(commands.Cog, name="Game"):
         return '\n'.join(msg)
 
 
-    @commands.command()
+    @commands.command(aliases=['t'])
     async def time(self, ctx):
         """Checks in-game time."""
         session = self.find_session_player(ctx.author.id)

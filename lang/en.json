@@ -223,6 +223,11 @@
             "You are already in!"
         ],
 
+        "already_in_elsewhere": [
+            "You are already playing in another game in {channel}!",
+            "You are already in another game in {channel}!"
+        ],
+
         "max_players": [
             "The maximum number of players ({max_players}) have already joined the game.",
             "There's no room left for you to join this game. There are already {max_players} players in this lobby."
