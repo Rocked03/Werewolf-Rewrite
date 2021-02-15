@@ -3,6 +3,8 @@ config.py
 settings.py
 test.py
 whalewolf-old-refractor.py
+stasis.db
+notify.db
 .env
 
 # Language files

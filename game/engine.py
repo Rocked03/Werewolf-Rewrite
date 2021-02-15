@@ -7,6 +7,7 @@ from enum import auto, Enum
 from .session import Session
 from .roles.roles import roles as roles_list
 from .roles.role import Template, Totems
+from .stasis import Stasis
 
 from config import *
 from settings import *
@@ -43,6 +44,8 @@ class GameEngine:
         self.setup()
         self.rolelists()
         self.declaration()
+
+        self.stasis = Stasis()
 
         self.lang = self.load_language(MESSAGE_LANGUAGE)
         self.gamemodes = self.load_gamemodes()
@@ -181,7 +184,15 @@ class GameEngine:
         if player_count < session.gamemode['min_players'] or player_count > session.gamemode['max_players']:
             session.gamemode = self.gamemodes['default']
 
-        # STASIS
+        
+        async with self.stasis.connection(self.bot.stasis_name) as conn:
+            stasisised = await self.stasis.get_all_dict(
+                lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
+
+            for user, count in stasisised.items():
+                await self.stasis.update(user, -1,
+                    lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
+
 
         await session.send(self.lg('welcome',
             listing=' '.join([x.mention for x in self.sort_players(session.preplayers, False)]),
@@ -206,7 +217,8 @@ class GameEngine:
                 count=RETRY_RUN_GAME
             ))
             # STOOOOOP
-            # await cmd_fstop(msg, '-force')
+            cmd = self.bot.get_command('force stop')
+            await cmd(ctx, session.id)
             return
 
         await self.session_update('push', session)

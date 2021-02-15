@@ -436,6 +436,18 @@
             "```basic\n --- Living players: --- \n{alive}\n --- Dead players: --- \n{dead}\n"
         ],
 
+        "stasis_count": [
+            "You are currently in stasis for **{count}** game{s}! This means that you cannot join a game until {count} game{s} <has|{pl}> passed."
+        ],
+
+        "no_stasis": [
+            "You are currently not in stasis!"
+        ],
+
+        "indefinite_stasis": [
+            "You are currently in stasis indefinitely! This means that you are currently barred from joining games."
+        ],
+
         "wolfchat": [
             "wolfchat"
         ],
@@ -540,6 +552,7 @@
     "plurals": {
         "body": "bodies",
         "was": "were",
-        "is": "are"
+        "is": "are",
+        "has": "have"
     }
 }

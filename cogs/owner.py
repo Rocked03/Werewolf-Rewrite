@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import inspect
 import io
 import sys
@@ -23,6 +24,12 @@ class Owner(commands.Cog, name="Owner"):
     async def __local_check(self, ctx):
         return await self.bot.is_owner(self, ctx.author)
 
+    def strfdelta(self, tdelta, fmt):
+        d = {"days": tdelta.days}
+        d["hours"], rem = divmod(tdelta.seconds, 3600)
+        d["minutes"], d["seconds"] = divmod(rem, 60)
+        return fmt.format(**d)
+
     @commands.command(name='shutdown')
     async def shutdown(self, ctx):
         """Shuts down the bot"""
@@ -31,12 +38,12 @@ class Owner(commands.Cog, name="Owner"):
             embed.add_field(name="Shutting down...", value="Discord Werewolf")
             await ctx.send(embed=embed)
             totaluptime = datetime.datetime.utcnow() - self.bot.uptime
-            totaluptime = strfdelta(totaluptime, "{days} days, {hours} hours, {minutes} minutes, {seconds} seconds")
+            totaluptime = self.strfdelta(totaluptime, "{days} days, {hours} hours, {minutes} minutes, {seconds} seconds")
             print(f'Shutting down... Total uptime: {totaluptime}')
             await self.bot.logout()
         except Exception: 
-            # await ctx.send('Something went wrong.')
-            pass
+            await ctx.reply('Something went wrong.')
+            traceback.print_exc()
 
 
     @commands.group(name="cogs", aliases=["cog"])
@@ -49,8 +56,8 @@ class Owner(commands.Cog, name="Owner"):
         """Loads cog. Remember to use dot path. e.g: cogs.owner"""
 
         try: self.bot.load_extension(cog)
-        except Exception as e: return await ctx.send(f'**ERROR:** {type(e).__name__} - {e}')
-        else: await ctx.send(f'Successfully loaded `{cog}`.')
+        except Exception as e: return await ctx.reply(f'**ERROR:** {type(e).__name__} - {e}')
+        else: await ctx.reply(f'Successfully loaded `{cog}`.')
         print('---')
         print(f'{cog} was loaded.')
         print('---')
@@ -60,8 +67,8 @@ class Owner(commands.Cog, name="Owner"):
         """Unloads cog. Remember to use dot path. e.g: cogs.owner"""
 
         try: self.bot.unload_extension(cog)
-        except Exception as e: return await ctx.send(f'**ERROR:** {type(e).__name__} - {e}')
-        else: await ctx.send(f'Successfully unloaded `{cog}`.')
+        except Exception as e: return await ctx.reply(f'**ERROR:** {type(e).__name__} - {e}')
+        else: await ctx.reply(f'Successfully unloaded `{cog}`.')
         print('---')
         print(f'{cog} was unloaded.')
         print('---')
@@ -71,8 +78,8 @@ class Owner(commands.Cog, name="Owner"):
         """Reloads cog. Remember to use dot path. e.g: cogs.owner"""
 
         try: self.bot.reload_extension(cog)
-        except Exception as e: return await ctx.send(f'**ERROR:** {type(e).__name__} - {e}')
-        else: await ctx.send(f'Successfully reloaded `{cog}`.')
+        except Exception as e: return await ctx.reply(f'**ERROR:** {type(e).__name__} - {e}')
+        else: await ctx.reply(f'Successfully reloaded `{cog}`.')
         self.bot.recentcog = cog
         print('---')
         print(f'{cog} was reloaded.')
@@ -81,11 +88,11 @@ class Owner(commands.Cog, name="Owner"):
     @commands.command(hidden = True, aliases = ['crr'])
     async def cogrecentreload(self, ctx):
         """Reloads most recent reloaded cog"""
-        if not self.bot.recentcog: return await ctx.send("You haven't recently reloaded any cogs.")
+        if not self.bot.recentcog: return await ctx.reply("You haven't recently reloaded any cogs.")
 
         try: self.bot.reload_extension(self.bot.recentcog)
-        except Exception as e: await ctx.send(f'**ERROR:** {type(e).__name__} - {e}')
-        else: await ctx.send(f'Successfully reloaded `{self.bot.recentcog}`.')
+        except Exception as e: await ctx.reply(f'**ERROR:** {type(e).__name__} - {e}')
+        else: await ctx.reply(f'Successfully reloaded `{self.bot.recentcog}`.')
         print('---')
         print(f'{self.bot.recentcog} was reloaded.')
         print('---')

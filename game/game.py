@@ -1,10 +1,15 @@
-import asyncio, copy, difflib, discord, typing
+import aiosqlite, asyncio, copy, difflib, discord, typing
 from datetime import datetime, timedelta
 from discord.ext import commands
-from wonderwords import RandomWord # pip wonderwords
+
+# aiosqlite, discord, typing, wonderwords
+
+try: from wonderwords import RandomWord
+except ModuleNotFoundError: RandomWord = None
 
 from .engine import GameEngine, GameState
 from .roles.player import Player, Bot
+from .stasis import Stasis
 
 from config import *
 from settings import *
@@ -29,6 +34,13 @@ from settings import *
 class Game(commands.Cog, name="Game"):
     def __init__(self, bot):
         self.bot = bot
+
+        self.stasis = Stasis()
+        self.bot.stasis_name = 'stasis'
+        self.bot.stasis_lock = asyncio.Lock()
+        # self.bot.loop.create_task(self.stasis_setup('stasis', name='stasis'))
+        self.bot.loop.create_task(self.stasis.setup(self.bot.stasis_name, name=self.bot.stasis_name))
+
         self.engine = GameEngine(bot)
 
         self.lg = self.engine.lg
@@ -64,12 +76,11 @@ class Game(commands.Cog, name="Game"):
 
         self.bot.pseudousers = []
 
-        self.rw = RandomWord()
-        self.randomword = lambda: (' '.join(self.rw.word(include_parts_of_speech=[x], word_max_length=8) for x in ['adjectives', 'nouns'])).title()
-
+        if RandomWord:
+            self.rw = RandomWord()
+            self.randomword = lambda: (' '.join(self.rw.word(include_parts_of_speech=[x], word_max_length=8) for x in ['adjectives', 'nouns'])).title()
 
         self.bot.loop.create_task(self.init_sessions(GAME_CHANNEL_ID))
-
 
     def admin():
         def predicate(ctx):
@@ -79,6 +90,9 @@ class Game(commands.Cog, name="Game"):
                 roles = ctx.bot.get_guild(WEREWOLF_SERVER_ID).get_member(ctx.author.id).roles
             return any(x.id in ADMINS_ROLE_ID for x in roles)
         return commands.check(predicate)
+
+    async def stasis_setup(self, *args, **kwargs):
+        self.bot.stasis_conn = await self.stasis.setup(*args, **kwargs)
 
     @admin()
     @commands.command(aliases=['initsession'])
@@ -163,7 +177,11 @@ class Game(commands.Cog, name="Game"):
             else:
                 return await ctx.reply(self.lg('already_in_elsewhere', channel=session.mention))
 
-        # STASIS
+        async with self.stasis.connection(self.bot.stasis_name) as conn:
+            stasis = await self.stasis.get(ctx.author.id,
+                lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
+        if stasis > 0: return await ctx.send(self.lg('stasis_count', count=stasis, s=self.s(stasis), pl=self.pl(stasis)))
+        elif stasis == -1: return await ctx.send(self.lg('indefinite_stasis'))
 
         successful, msg = await self.player_join(session, ctx.author)
         await ctx.reply(msg)
@@ -224,9 +242,11 @@ class Game(commands.Cog, name="Game"):
         bot_dm_channel = self.bot.get_channel(PSEUDOUSER_MSG_CHANNEL_ID)
 
         for i in range(count):
+            if RandomWord: name = self.randomword()
+            else: name = str(ctx.message.id + i)
             pseudouser = Bot(
                 _id=ctx.message.id + i,
-                _name=self.randomword(),
+                _name=name,
                 _discriminator='0000',
                 _channel=bot_dm_channel
             )
@@ -252,8 +272,10 @@ class Game(commands.Cog, name="Game"):
             player = self.get_player(session, ctx.author.id)
             if not player.alive: return
 
+            leave_stasis = QUIT_GAME_STASIS * len(self.bot.sessions)
+
             if force != '-force':
-                message = await ctx.reply(self.lg('leave_confirm', count='something'))
+                message = await ctx.reply(self.lg('leave_confirm', count=leave_stasis))
 
                 check = lambda m: m.author.id == ctx.author.id and m.channel.id == ctx.channel.id
                 try: msg = await self.bot.wait_for('message', timeout=5, check=check)
@@ -268,6 +290,10 @@ class Game(commands.Cog, name="Game"):
             session = await self.session_update('pull', session)
             session, msg2 = await self.player_leave(session, self.find_player(session, ctx.author.id))
             session = await self.player_update(session, self.find_player(session, ctx.author.id))
+
+            async with self.stasis.connection(self.bot.stasis_name) as conn:
+                await self.stasis.update(ctx.author.id, leave_stasis,
+                    lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
 
             return await msg.reply(msg2)
 
@@ -989,6 +1015,24 @@ class Game(commands.Cog, name="Game"):
         # log
 
 
+
+
+    @commands.command()
+    async def stasis(self, ctx, user: commands.UserConverter = None):
+        """Tells you your stasis, if any."""
+        if user is None: user = ctx.author
+
+        async with self.stasis.connection(self.bot.stasis_name) as conn:
+            count = await self.stasis.get(user.id,
+                lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
+
+        if count == -1: await ctx.reply(self.lg('indefinite_stasis'))
+        elif count: await ctx.reply(self.lg('stasis_count', count=count, s=self.s(count), pl=self.pl(count)))
+        else: await ctx.reply(self.lg('no_stasis'))
+
+
+
+
     @admin()
     @commands.command()
     async def revealroles(self, ctx, session: int = None):
@@ -1015,6 +1059,7 @@ class Game(commands.Cog, name="Game"):
             await ctx.send(self.lg('dm_off', mention=player.mention))
 
         # log
+
 
 
 
@@ -1344,6 +1389,36 @@ class Game(commands.Cog, name="Game"):
 
         await ctx.reply(f"Set the reveal to `{mode}`")
         # log
+
+    @force.group(name='stasis')
+    async def fstasis(self, ctx):
+        """Force stasis."""
+        if not ctx.invoked_subcommand:
+            await ctx.send_help(ctx.command)
+
+    @fstasis.command(name='set')
+    async def fset(self, ctx, user: commands.UserConverter, count: int):
+        """Sets a user's stasis."""
+        async with self.stasis.connection(self.bot.stasis_name) as conn:
+            new = await self.stasis.update(user.id, count, setcount=True,
+                lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
+        await ctx.reply(f"Set {user.mention}'s' ({user.id}) stasis to {new} game{self.s(new)}.")
+
+    @fstasis.command(name='add')
+    async def fadd(self, ctx, user: commands.UserConverter, count: int):
+        """Adds to a user's stasis. Use negatives to subtract."""
+        async with self.stasis.connection(self.bot.stasis_name) as conn:
+            new = await self.stasis.update(user.id, count,
+                lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
+        await ctx.reply(f"Added {count} game{self.s(count)} to {user.mention}'s ({user.id}) stasis, bringing their stasis to {new} game{self.s(new)}.")
+
+    @fstasis.command(name='clear')
+    async def fclear(self, ctx, user: commands.UserConverter):
+        """Clears a user's stasis."""
+        async with self.stasis.connection(self.bot.stasis_name) as conn:
+            new = await self.stasis.update(user.id, 0, setcount=True,
+                lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
+        await ctx.reply(f"Cleared {user.mention}'s ({user.id}) stasis.")
 
 
 
