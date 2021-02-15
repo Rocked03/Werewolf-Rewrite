@@ -399,6 +399,10 @@
             "You retracted your kill{pl}"
         ],
 
+        "retract_kill_wolfchat": [
+            "{name} has retracted their vote to kill."
+        ],
+
         "abstain_first_day": [
             "The village may not abstain on the first day."
         ],
@@ -447,6 +451,32 @@
         "indefinite_stasis": [
             "You are currently in stasis indefinitely! This means that you are currently barred from joining games."
         ],
+
+        "no_notify": [
+            "Nobody's online to notify!"
+        ],
+
+        "notify": [
+            "PING! Mentioning **{count}** user{s}\n{mentions}\nThis message has been approved by {author}."
+        ],
+
+        "notify_stasis": [
+            "You have stasis, so you cannot notify others."
+        ],
+
+        "notify_add": [
+            "Added you to the notify ping list! To remove yourself, simply use the {prefix}notifyme command again."
+        ],
+
+        "notify_remove": [
+            "Removed you to the notify ping list. To add yourself back, simply use the {prefix}notifyme command again."
+        ],
+
+        "cooldown": [
+            "This command is on cooldown! Please wait {time}."
+        ],
+
+
 
         "wolfchat": [
             "wolfchat"

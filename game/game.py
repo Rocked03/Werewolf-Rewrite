@@ -1,6 +1,7 @@
-import aiosqlite, asyncio, copy, difflib, discord, typing
+import aiosqlite, asyncio, copy, difflib, discord, random, sys, traceback, typing
 from datetime import datetime, timedelta
 from discord.ext import commands
+from discord.ext.commands.cooldowns import BucketType
 
 # aiosqlite, discord, typing, wonderwords
 
@@ -10,6 +11,7 @@ except ModuleNotFoundError: RandomWord = None
 from .engine import GameEngine, GameState
 from .roles.player import Player, Bot
 from .stasis import Stasis
+from .notify import Notify
 
 from config import *
 from settings import *
@@ -20,13 +22,12 @@ from settings import *
 # ---- medium priority
 # logs
 # roles/perms
-# notify
-# stasis
 # info
 # ---- low priority
 # more roles
 # clean up command checks (single function?)
 # nicer message formats (eg embeds and stuff)
+# clean up init
 
 
 
@@ -38,8 +39,13 @@ class Game(commands.Cog, name="Game"):
         self.stasis = Stasis()
         self.bot.stasis_name = 'stasis'
         self.bot.stasis_lock = asyncio.Lock()
-        # self.bot.loop.create_task(self.stasis_setup('stasis', name='stasis'))
         self.bot.loop.create_task(self.stasis.setup(self.bot.stasis_name, name=self.bot.stasis_name))
+
+        self.notify = Notify()
+        self.bot.notify_name = 'notify'
+        self.bot.notify_lock = asyncio.Lock()
+        self.bot.loop.create_task(self.notify.setup(self.bot.notify_name, name=self.bot.notify_name))
+
 
         self.engine = GameEngine(bot)
 
@@ -91,8 +97,6 @@ class Game(commands.Cog, name="Game"):
             return any(x.id in ADMINS_ROLE_ID for x in roles)
         return commands.check(predicate)
 
-    async def stasis_setup(self, *args, **kwargs):
-        self.bot.stasis_conn = await self.stasis.setup(*args, **kwargs)
 
     @admin()
     @commands.command(aliases=['initsession'])
@@ -160,6 +164,27 @@ class Game(commands.Cog, name="Game"):
             else: return await self.bot.process_commands(message)
 
         # await self.bot.process_commands(message)
+
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        if hasattr(ctx.command, 'on_error'):
+            return
+
+        error = getattr(error, 'original', error)
+
+        ignored = (commands.CommandNotFound, )
+
+        if isinstance(error, ignored):
+            return
+
+        elif isinstance(error, commands.CommandOnCooldown):
+            hours, remainder = divmod(int(round(error.retry_after, 2)), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            return await ctx.reply(self.lg('cooldown', time=', '.join([f"**{t}** {n}" for t, n in zip([hours, minutes, seconds], ['hours', 'minutes', 'seconds']) if t])))
+
+        else:
+            print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
     @commands.command(aliases=['j'])
@@ -879,9 +904,9 @@ class Game(commands.Cog, name="Game"):
                     player.targets = []
                     session = await self.player_update(session, player)
 
-                    await ctx.reply('retract_kill', pl=self.s(len(former_targets)))
+                    await ctx.reply(self.lg('retract_kill', pl=self.s(len(former_targets))))
 
-                    # wolfchat
+                    await self.wolfchat(session, self.lg('retract_kill_wolfchat', name=self.get_name(player)), bot=True)
                     # log
 
     @commands.command(aliases=['abs'])
@@ -1014,6 +1039,48 @@ class Game(commands.Cog, name="Game"):
 
         # log
 
+
+
+    @commands.command()
+    @commands.cooldown(1, NOTIFY_COOLDOWN, BucketType.channel) 
+    async def notify(self, ctx):
+        """Pings a selection of online users signed up to the notify list."""
+        async with self.stasis.connection(self.bot.stasis_name) as conn:
+            stasisised = await self.stasis.get_all_dict(
+                lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
+        if ctx.author.id in stasisised and stasisised[ctx.author.id] != 0: 
+            await ctx.reply(self.lg('stasis_notify'))
+            ctx.command.reset_cooldown(ctx)
+            return
+
+        async with self.notify.connection(self.bot.notify_name) as conn:
+            notifylist = await self.notify.get_all(
+                lock=self.bot.notify_lock, name=self.bot.notify_name, conn=conn)
+
+        online = [x for x in [ctx.guild.get_member(y) for y in notifylist if y not in stasisised] if x is not None and x.status in [discord.Status.online, discord.Status.idle]]
+
+        if not online:
+            await ctx.reply(self.lg('no_notify'))
+            ctx.command.reset_cooldown(ctx)
+            return
+        else:
+            mentionlist = [x.mention for x in random.sample(online, min(len(online), MAX_NOTIFY))]
+            return await ctx.reply(self.lg('notify',
+                count=len(mentionlist),
+                s=self.s(len(mentionlist)),
+                mentions=' '.join(mentionlist),
+                author=ctx.author.mention
+            ))
+
+    @commands.command(aliases=['togglenotify'])
+    async def notifyme(self, ctx):
+        """Toggles adding you to the notify ping list."""
+        async with self.notify.connection(self.bot.notify_name) as conn:
+            newstate = await self.notify.toggle(ctx.author.id,
+                lock=self.bot.notify_lock, name=self.bot.notify_name, conn=conn)
+
+        if newstate: return await ctx.reply(self.lg('notify_add'))
+        else: return await ctx.reply(self.lg('notify_remove'))
 
 
 
