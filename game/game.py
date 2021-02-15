@@ -28,6 +28,8 @@ from settings import *
 # clean up command checks (single function?)
 # nicer message formats (eg embeds and stuff)
 # clean up init
+# config/setting example updates
+# requirements thingy
 
 
 
@@ -1067,7 +1069,12 @@ class Game(commands.Cog, name="Game"):
             notifylist = await self.notify.get_all(
                 lock=self.bot.notify_lock, name=self.bot.notify_name, conn=conn)
 
-        online = [x for x in [ctx.guild.get_member(y) for y in notifylist if y not in stasisised] if x is not None and x.status in [discord.Status.online, discord.Status.idle]]
+        online = [
+            x for x in [
+                ctx.guild.get_member(y) for y in notifylist 
+                if y not in stasisised and y not in [
+                    p for s in self.bot.sessions.values() for p in s.player_ids]] 
+            if x is not None and x.status in [discord.Status.online, discord.Status.idle]]
 
         if not online:
             await ctx.reply(self.lg('no_notify'))
