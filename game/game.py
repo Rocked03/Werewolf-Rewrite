@@ -182,6 +182,13 @@ class Game(commands.Cog, name="Game"):
             minutes, seconds = divmod(remainder, 60)
             return await ctx.reply(self.lg('cooldown', time=', '.join([f"**{t}** {n}" for t, n in zip([hours, minutes, seconds], ['hours', 'minutes', 'seconds']) if t])))
 
+        elif isinstance(error, commands.CheckFailure):
+            return await ctx.reply(self.lg('missing_perms'))
+
+        elif isinstance(error, commands.MissingRequiredArgument):
+            return await ctx.reply(error)
+
+
         else:
             print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
@@ -190,7 +197,6 @@ class Game(commands.Cog, name="Game"):
     @commands.command(aliases=['j'])
     async def join(self, ctx, gamemode = None):
         """Joins the game if it has not started yet. Votes for gamemode if given."""
-        
         if not ctx.guild: return await ctx.reply(self.lg('use_in_channel_2', command=ctx.invoked_with))
         session = self.find_session_channel(ctx.channel.id)
         if not session: return await ctx.reply(self.lg('no_session_channel'))
@@ -1045,13 +1051,17 @@ class Game(commands.Cog, name="Game"):
     @commands.cooldown(1, NOTIFY_COOLDOWN, BucketType.channel) 
     async def notify(self, ctx):
         """Pings a selection of online users signed up to the notify list."""
+        session = self.find_session_channel(ctx.channel.id)
+        if not session: 
+            await ctx.reply(self.lg('no_session_channel'))
+            return ctx.command.reset_cooldown(ctx)
+
         async with self.stasis.connection(self.bot.stasis_name) as conn:
             stasisised = await self.stasis.get_all_dict(
                 lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
         if ctx.author.id in stasisised and stasisised[ctx.author.id] != 0: 
-            await ctx.reply(self.lg('stasis_notify'))
-            ctx.command.reset_cooldown(ctx)
-            return
+            await ctx.reply(self.lg('notify_stasis'))
+            return ctx.command.reset_cooldown(ctx)
 
         async with self.notify.connection(self.bot.notify_name) as conn:
             notifylist = await self.notify.get_all(
@@ -1061,8 +1071,7 @@ class Game(commands.Cog, name="Game"):
 
         if not online:
             await ctx.reply(self.lg('no_notify'))
-            ctx.command.reset_cooldown(ctx)
-            return
+            return ctx.command.reset_cooldown(ctx)
         else:
             mentionlist = [x.mention for x in random.sample(online, min(len(online), MAX_NOTIFY))]
             return await ctx.reply(self.lg('notify',
