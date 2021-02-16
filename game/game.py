@@ -21,6 +21,7 @@ from settings import *
 # roles/perms
 # ---- medium priority
 # info
+# @everyone mention escaping
 # ---- low priority
 # more roles
 # inbuilt slash commands
@@ -207,6 +208,8 @@ class Game(commands.Cog, GameEngine, name="Game"):
         if not successful:
             return
 
+        await self.player_give_perms(session.channel, ctx.author, self.bot.PLAYERS_ROLE)
+
         if gamemode:
             session = await self.session_update('pull', session)
             self.vote_gamemode(session, ctx.author.id, gamemode)
@@ -313,7 +316,11 @@ class Game(commands.Cog, GameEngine, name="Game"):
                 await self.stasis.update(ctx.author.id, leave_stasis,
                     lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
 
-            return await msg.reply(msg2)
+            await msg.reply(msg2)
+
+            await self.player_remove_perms(session.channel, ctx.author, self.bot.PLAYERS_ROLE)
+
+            return
 
         else:
             session = await self.session_update('pull', session)
@@ -321,6 +328,8 @@ class Game(commands.Cog, GameEngine, name="Game"):
             session = await self.session_update('push', session, ['preplayers'])
 
             return await ctx.reply(msg)
+
+            await self.player_remove_perms(session.channel, ctx.author, self.bot.PLAYERS_ROLE)
 
     async def player_leave(self, session, player, reason='leave'):
         if reason == 'leave': msgtype = 'leave_death'
@@ -1108,6 +1117,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
 
 
 
+
     @admin()
     @commands.command()
     async def revealroles(self, ctx, session: int = None):
@@ -1160,6 +1170,9 @@ class Game(commands.Cog, GameEngine, name="Game"):
             success, msg = await self.player_join(session, t)
             await ctx.reply(f"**[{t.mention} ({t.id})]**: {msg}")
 
+            if t.real:
+                await self.player_give_perms(session.channel, t.user, self.bot.PLAYERS_ROLE)
+
         await self.log(2, 'force join', self.slog(session), self.ulog(ctx.author), targets=' '.join([str(t.id) for t in target]))
 
     @force.command(name='leave', aliases=['l'])
@@ -1190,6 +1203,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
                 final_targets.append(t.id)
 
                 await ctx.reply(f"**[{name}]**: {msg}")
+
         else:
             for t in target:
                 name = f"{t.mention} ({t.id})"
@@ -1521,6 +1535,36 @@ class Game(commands.Cog, GameEngine, name="Game"):
                 lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
         await ctx.reply(f"Cleared {user.mention}'s ({user.id}) stasis.")
         await self.log(2, 'stasis clear', self.ulog(ctx.author), target=self.ulog(user))
+
+    @force.command()
+    async def sync(self, ctx, session: int = None):
+        """Syncs session channel permissions."""
+        if session is not None: session = self.find_session_channel(session)
+        else: session = self.find_session_channel(ctx.channel.id)
+
+        if session is not None and session.in_session:
+            perms = await self.lock_lobby(session)
+
+            for player in session.players:
+                if player.alive:
+                    perms[player.user] = await self.player_give_perms(session.channel, player.user, self.bot.PLAYERS_ROLE, bulk=True)
+                else:
+                    await self.player_remove_perms(session.channel, player.user, self.bot.PLAYERS_ROLE, bulk=True)
+                    perms[player.user] = None
+
+            await session.channel.edit(overwrites=self.update_overwrites(session.channel.overwrites, overwrites))
+
+        else:
+            if session is not None: channel = session.channel
+            else: channel = ctx.channel
+
+            users = [k for k, v in channel.overwrites.items() if isinstance(k, discord.Member) and v.read_messages != None]
+            users += [x for x in self.bot.PLAYERS_ROLE.members if x.id not in [t for s in self.bot.sessions.values() for t in s.player_ids]]
+            await self.unlock_lobby(None, users, self.bot.PLAYERS_ROLE, channel=channel)
+
+        await ctx.reply("Synced lobby.")
+
+        await self.log(2, 'sync', self.slog(session), self.ulog(ctx.author))
 
 
 

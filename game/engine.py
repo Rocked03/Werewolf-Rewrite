@@ -166,6 +166,79 @@ class GameEngine:
         return session
 
 
+    async def lock_lobby(self, session, users=[], role=None, *, bulk=False):
+        channel = session.channel
+
+        overwrites = dict()
+
+        for user in users:
+            overwrite = await self.player_give_perms(channel, user, role, bulk=True)
+            if overwrite: overwrites[user] = overwrite
+
+        default_role = channel.guild.default_role
+        default_perms = channel.overwrites_for(default_role)
+        default_perms.send_messages = False
+        if not bulk:
+            overwrites[default_role] = default_perms
+            await channel.edit(overwrites=self.update_overwrites(channel.overwrites, overwrites))
+        else: return default_perms
+
+    async def unlock_lobby(self, session=None, users=[], role=None, *, bulk=False, channel=None):
+        if session is not None:
+            channel = session.channel
+        
+        overwrites = dict()
+
+        for user in users:
+            overwrite = await self.player_remove_perms(channel, user, role, bulk=True)
+            if overwrite: overwrites[user] = None
+
+        default_role = channel.guild.default_role
+        default_perms = channel.overwrites_for(default_role)
+        default_perms.send_messages = None
+        if not bulk:
+            overwrites[default_role] = default_perms
+            await channel.edit(overwrites=self.update_overwrites(channel.overwrites, overwrites))
+        else: return default_perms
+
+    async def player_give_perms(self, channel, user, role, *, bulk=False):
+        if role is not None:
+            member = channel.guild.get_member(user.id)
+            if member is not None:
+                if role not in member.roles:
+                    await member.add_roles(role)
+
+        perms = channel.overwrites_for(user)
+        perms.read_messages = True
+        perms.send_messages = True
+        if not bulk: await channel.edit(overwrites=self.update_overwrites(channel.overwrites, {user: perms}))
+        else: return perms
+        return None
+
+    async def player_remove_perms(self, channel, user, role=None, *, bulk=False):
+        if role is not None:
+            member = channel.guild.get_member(user.id)
+            if member is not None:
+                if role in member.roles:
+                    await member.remove_roles(role)
+
+        perms = channel.overwrites
+        if user not in perms: return None
+        else:
+            if not bulk: await channel.edit(overwrites=self.update_overwrites(perms, {user: None}))
+            else: return True
+        return None
+
+    def update_overwrites(self, old, new):
+        for k, v in new.items():
+            if v is not None:
+                old[k] = v
+            elif k in old: del old[k]
+        return old
+
+
+
+
     async def run_game(self, session):
         session.phase = GameState.GAME_SETUP
 
@@ -206,7 +279,8 @@ class GameEngine:
         session.reveal = reveal_votes.count(True) >= reveal_votes.count(False) * 1.00001
 
 
-        # LOCK LOBBY
+        await self.lock_lobby(session, users=[x.user for x in session.preplayers if x.real], role=self.bot.PLAYERS_ROLE)
+
 
         session.in_session = True
         session = await self.session_update('push', session)
@@ -676,11 +750,13 @@ class GameEngine:
         await session.send('\n\n'.join(msg))
         await self.log(1, 'game win', self.slog(session), winners=' '.join(str(x.id) for x in winners))
 
+        sessionusers = [x.user for x in session.players if x.real]
+
         for player in session.players:
             session = await self.player_death(session, player, 'game end', 'bot')
 
 
-        # unlock lobby
+        await self.unlock_lobby(session, users=sessionusers, role=self.bot.PLAYERS_ROLE)
 
         return session
 
@@ -926,7 +1002,8 @@ class GameEngine:
             session.preplayers.pop(session.preplayers.index(player))
             session.player_ids.pop(session.player_ids.index(player.id))
 
-        # REMOVE PLAYER ROLE
+        if player.real:
+            await self.player_remove_perms(session.channel, player.user, self.bot.PLAYERS_ROLE)
 
         if session.in_session and kill_team != 'bot':
             # wolf cub stuff

@@ -14,6 +14,7 @@ class Role:
         self.nickname = self.player.nickname
         self.discriminator = self.player.discriminator
         self.user = self.player.user
+        self.real = self.player.real
 
         self.template = Template()
         self.totems = Totems()

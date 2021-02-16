@@ -52,7 +52,7 @@ async def on_ready():
     # bot.GAME_CHANNEL = bot.WEREWOLF_SERVER.get_channel(GAME_CHANNEL_ID)
     bot.LOG_CHANNEL = bot.WEREWOLF_SERVER.get_channel(LOG_CHANNEL_ID)
     # bot.ADMINS_ROLE = bot.WEREWOLF_SERVER.get_role(ADMINS_ROLE_ID)
-    # bot.PLAYERS_ROLE = bot.WEREWOLF_SERVER.get_role(PLAYERS_ROLE_ID)
+    bot.PLAYERS_ROLE = bot.WEREWOLF_SERVER.get_role(PLAYERS_ROLE_ID)
     # required_fields = ('GAME_CHANNEL', 'DEBUG_CHANNEL', 'ADMINS_ROLE', 'PLAYERS_ROLE')
     # for field in required_fields:
     #   if not getattr(bot, field):
