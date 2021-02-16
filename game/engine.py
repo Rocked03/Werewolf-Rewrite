@@ -1,4 +1,4 @@
-import asyncio, discord, json, os, random, traceback
+import asyncio, discord, json, os, random, textwrap, traceback
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from discord.ext import commands
@@ -119,6 +119,36 @@ class GameEngine:
             return json.load(f)
 
 
+    async def log(self, level, prefix, *args, **kwargs):
+        try:
+            try: ownermention = self.bot.owner.mention
+            except AttributeError: ownermention = "@owner"
+            levelmsg = {
+                0: '[DEBUG]',
+                1: '[INFO]',
+                2: '**[WARNING]**',
+                3: f'**[ERROR]** {self.bot.owner.mention}'
+            }
+
+            msg = ' '.join([str(x) for x in [levelmsg[level], prefix.upper(), ' '.join(args), ' '.join([f"{k.strip('_').replace('_', ' ').upper()}: {v}" for k, v in kwargs.items()])] if x])
+
+            # localfile
+
+            if level >= MIN_LOG_LEVEL:
+                width = 2000 - 50
+                msglist = [x.replace('%n','\n') for x in textwrap.wrap(msg.replace('\n','%n'), width)]
+
+                logmsg = await self.bot.LOG_CHANNEL.send(msglist[0])
+
+                for x in msglist[1:]:
+                    logmsg = await logmsg.reply("[CONTINUED] " + x, mention_author=False)
+        except Exception as e:
+            traceback.print_exc()
+
+    ulog = lambda self, u: f"<{u.name} | {u.id}>"  # user log format
+    slog = lambda self, s: f"s:{s.id}"             # session log format
+
+
     def session_setup(self, channel):
         session = Session(channel)
         session.phase = GameState.LOBBY
@@ -147,12 +177,12 @@ class GameEngine:
         player_count = session.player_count
 
         if not session.gamemode:
-            vote_dict = {}
+            vote_dict = dict()
             for player in session.preplayers:
-                if player.vote.gamemode in vote_dict:
+                if player.vote.gamemode in vote_dict.keys():
                     vote_dict[player.vote] += 1
                 elif player.vote.gamemode:
-                    vote_dict = 1
+                    vote_dict[player.vote] = 1
             topvote = [g for g, n in vote_dict.items() if n >= session.player_count // 2 + 1]
             if topvote: session.gamemode(self.gamemodes[random.choice(topvote)])
 
@@ -209,16 +239,17 @@ class GameEngine:
             except Exception as e:
                 traceback.print_exc()
                 print('----')
-                # await adapter.log(2, "Role attribution failed with error: ```py\n{}\n```".format(traceback.format_exc()))
+                await self.log(2, 'error', self.slog(session), "Role attribution failed with error: {e}. See console for more details.")
                 pass
         else:
             msg = await session.send(self.lg('role_attribution_fail',
                 listing=' '.join([x.mention for x in self.sort_players(session.preplayers, False)]),
                 count=RETRY_RUN_GAME
             ))
-            # STOOOOOP
-            cmd = self.bot.get_command('force stop')
-            await cmd(ctx, session.id)
+            
+            session.in_session = False
+            session = await self.session_update('push', session, ['in_session'])
+            session = self.session_setup(session.channel)
             return
 
         await self.session_update('push', session)
@@ -228,32 +259,34 @@ class GameEngine:
                 if i == 0: session = await self.game_loop(session)
                 else: session = await self.game_loop(session, True)
                 break
-            except:
+            except Exception as e:
                 await session.send(self.lg('game_loop_break',
                     listing=' '.join([x.mention for x in self.sort_players(session.players)]))
                 )
                 traceback.print_exc()
                 print('----')
-                # await adapter.log(3, "Game loop broke with error: ```py\n{}\n```".format(traceback.format_exc()))
+                await self.log(3, 'error', self.slog(session), f"Game loop broke with error: {e}. See console for more details.")
+                error = traceback.format_exc()
+                width = 2000 - 50
+                for msg in [x.replace('%n','\n') for x in textwrap.wrap(error.replace('\n','%n'), width)]:
+                    await self.bot.owner.send(f"```py\n{msg}```")
         else:
             msg = await session.send(self.lg('game_loop_fail',
                 listing=' '.join([x.mention for x in self.sort_players(session.players)]),
                 count=RETRY_RUN_GAME
             ))
-            # STOOOOOP
-            # await cmd_fstop(msg, '-force')
+            
+            await self.end_game(session=session, reason="The game has been stopped forcefully.", end_stats=self.end_game_stats(session))
+            session.in_session = False
+            session = await self.session_update('push', session, ['in_session'])
+            session = self.session_setup(session.channel)
+            return
 
 
 
     async def game_loop(self, session=None, retry=False):
         # PRE-GAME
-        # if retry:
-        #     await session.send(self.lg('welcome',
-        #         listing=' '.join([x.mention for x in self.sort_players(session.players)]),
-        #         gamemode=session.gamemode['name'],
-        #         count=session.player_count,
-        #         prefix=BOT_PREFIX
-        #     ))
+        await self.log(1, 'game start', self.slog(session))
 
         # GAME START
         session.phase = GameState.SUNSET2
@@ -323,7 +356,7 @@ class GameEngine:
 
             session = await self.session_update('push', session)
 
-            # log
+            # log - totem
 
         elif when == 'post-day':
             session.set_night()
@@ -408,6 +441,8 @@ class GameEngine:
     async def sunrise(self, session):
         session.night_count = 1
 
+        log_msg = {}
+
         killed_msg = []
         killed_dict = {p: 0 for p in session.players}
         # for player in session[1]:
@@ -433,13 +468,20 @@ class GameEngine:
 
         killed_temp = killed_players[:]
 
+        
+        log_msg['deaths_from_wolf'] = ', '.join(self.ulog(x) for x in wolf_deaths)
+        log_msg['killed_players'] = ', '.join(self.ulog(x) for x in killed_players)
+
+        log_msg = {k: f"{v}\n" for k, v in log_msg.items()}
+
+        await self.log(1, 'sunrise log', self.slog(session), '\n', **log_msg)
 
         if len(killed_players) == 0:
             if True: # stuff
                 killed_msg.append(self.lg('no_kills'))
         else:
             l = len(killed_players)
-            dead_bodies = [f"**{self.get_name(p)}**{f', a **{self.lgr(p.death_role)}**' if session.reveal else ''}" for p in killed_players]  # may need lang fix
+            dead_bodies = [f"**{p.mention}**{f', a **{self.lgr(p.death_role)}**' if session.reveal else ''}" for p in killed_players]  # may need lang fix
             killed_msg.append(self.lg("dead_body", 
                 pl=self.pl(l),
                 listing=self.listing(dead_bodies, session.reveal)
@@ -472,18 +514,19 @@ class GameEngine:
             for player in session.players: # more totem stuff
                 pass
 
-            await session.send(self.lg('now_daytime'))
+            await session.send(self.lg('now_daytime', time=self.timestr_to_text(DISCUSSION_LENGTH)))
 
         for player in session.players: # blindness, illness, doomsayer
             pass
 
         lynched_player = None
         warn = False
+        vote_start = False
 
         # DAY LOOP
         while self.in_session(session) and not lynched_player and session.day:
             session = await self.session_update('pull', session)
-            session, lynched_player, totem_dict, warn = await self.day_loop(session, lynched_player, warn)
+            session, lynched_player, totem_dict, vote_start, warn = await self.day_loop(session, lynched_player, vote_start, warn)
             session = await self.session_update('push', session, ['night_start', '_daynight'])
             await asyncio.sleep(0.1)
 
@@ -536,12 +579,12 @@ class GameEngine:
 
                         if session.reveal:
                             lynched_msg.append(self.lg('lynched',
-                                lynched=lynched_name,
+                                lynched=lynched_player.mention,
                                 role=lynched_player.death_role
                             ))
                         else:
                             lynched_msg.append(self.lg('lynched_no_reveal',
-                                lynched=lynched_name
+                                lynched=lynched_player.mention
                             ))
 
                         await session.send('\n'.join(lynched_msg))
@@ -567,7 +610,7 @@ class GameEngine:
 
         return session
 
-    async def day_loop(self, session, lynched_player, warn):
+    async def day_loop(self, session, lynched_player, vote_start, warn):
         vote_dict, totem_dict, able_players = self.get_votes(session)
 
         if vote_dict['abstain'] >= len(able_players) / 2:  # even split or majority
@@ -582,13 +625,17 @@ class GameEngine:
             session.night_start = datetime.utcnow()
             session.set_night()
 
+        if not vote_start and (datetime.utcnow() - session.day_start).total_seconds() > DISCUSSION_LENGTH:
+            vote_start = True
+            await session.send(self.lg('voting_start'))
+
         if not warn and (datetime.utcnow() - session.day_start).total_seconds() > self.dwarn:
             warn = True
             await session.send(self.lg('almost_night'))
 
-        return session, lynched_player, totem_dict, warn
+        return session, lynched_player, totem_dict, vote_start, warn
 
-    async def end_game(self, *, session, win_team=None, reason=None, winners=None, end_stats=None):
+    async def end_game(self, *, session, win_team=None, reason=None, winners=[], end_stats=None):
         if not session.in_session: return
 
         session.in_session = False
@@ -627,6 +674,7 @@ class GameEngine:
             msg.append(self.lg('end_game_no_winners'))
 
         await session.send('\n\n'.join(msg))
+        await self.log(1, 'game win', self.slog(session), winners=' '.join(str(x.id) for x in winners))
 
         for player in session.players:
             session = await self.player_death(session, player, 'game end', 'bot')
@@ -736,7 +784,7 @@ class GameEngine:
 
         massive_role_list, debug_message = self.balance_roles(massive_role_list, num_players=session.player_count)
         if debug_message:
-            pass # log stuff
+            await self.log(2, 'balance roles', self.slog(session), msg=debug_message)
 
         session.original_roles_amount = gamemode_roles
 
@@ -886,7 +934,8 @@ class GameEngine:
 
         # more assassin stuff
 
-        # log
+        await self.log(0, 'player death', self.slog(session), self.ulog(player.user), gamestate=ingame, reason=reason)
+
         if session.in_session and reason != 'game cancel':
             session = await self.player_update(session, player)
         return session
@@ -1078,6 +1127,15 @@ class GameEngine:
     def find_player(self, session, player_id):
         try: return session.players[[x.id for x in session.players].index(player_id)]
         except ValueError: None
+
+    def split_time(self, x):
+        hours, remainder = divmod(int(round(x, 2)), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return hours, minutes, seconds
+
+    def timestr_to_text(self, x):
+        x = self.split_time(x)
+        return ', '.join([f"**{t}** {n}{self.s(t)}" for t, n in zip(x, ['hour', 'minute', 'second']) if t])
 
 
 

@@ -40,6 +40,7 @@ async def on_ready():
 
     print('Starting async init')
     bot._app_info = await bot.application_info()
+    bot.owner = bot._app_info.owner
 
     while True:
         await asyncio.sleep(1)
@@ -49,7 +50,7 @@ async def on_ready():
     if not bot.WEREWOLF_SERVER:
       await bot.shutdown(f'Error: could not find guild with id {WEREWOLF_SERVER_ID}.')
     # bot.GAME_CHANNEL = bot.WEREWOLF_SERVER.get_channel(GAME_CHANNEL_ID)
-    # bot.DEBUG_CHANNEL = bot.WEREWOLF_SERVER.get_channel(DEBUG_CHANNEL_ID)
+    bot.LOG_CHANNEL = bot.WEREWOLF_SERVER.get_channel(LOG_CHANNEL_ID)
     # bot.ADMINS_ROLE = bot.WEREWOLF_SERVER.get_role(ADMINS_ROLE_ID)
     # bot.PLAYERS_ROLE = bot.WEREWOLF_SERVER.get_role(PLAYERS_ROLE_ID)
     # required_fields = ('GAME_CHANNEL', 'DEBUG_CHANNEL', 'ADMINS_ROLE', 'PLAYERS_ROLE')

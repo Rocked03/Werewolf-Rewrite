@@ -78,13 +78,18 @@ class Player:
 class Bot:
     def __init__(self, _id, _name, _discriminator, _channel):
         self.id = _id
-        self.name = _name
+        self._name = _name
         self.display_name = _name
         self.discriminator = _discriminator
 
         self.mention = f"@{_name}#{_discriminator}\\🤖"
 
         self.channel = _channel
+
+    @property
+    def name(self):
+        return self._name + " 🤖"
+    
 
     async def send(self, *args, **kwargs):
         args = list(args)

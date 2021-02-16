@@ -1,7 +1,7 @@
 {
     "phrases": {
         "now_daytime": [
-            "It is now **daytime**. Use `{prefix}vote <player>` to vote to lynch a player."
+            "It is now **daytime**. Discussion time is {time}, after which you may use `{prefix}vote <player>` to vote to lynch a player."
         ],
 
         "now_nighttime": [
@@ -384,7 +384,15 @@
         ],
 
         "no_votes_yet": [
-            "No one has cast a vote yet. Type `{prefix}lynch <player>` in {channel} to lynch a player."
+            "No one has cast a vote yet. Type `{prefix}vote <player>` in {channel} to lynch a player."
+        ],
+
+        "voting_start": [
+            "Voting has started! You may now cast your votes by typing `{prefix}vote <player>`."
+        ],
+
+        "day_discussion": [
+            "You cannot vote yet! You may start voting after {time}."
         ],
 
         "night_votes": [
@@ -407,7 +415,7 @@
             "The village may not abstain on the first day."
         ],
 
-        "abstain": [
+        "abstain_vote": [
             "**{name}** votes to not lynch anyone today."
         ],
 
@@ -457,7 +465,7 @@
         ],
 
         "notify": [
-            "**PING!** Mentioning **{count}** user{s}:\n{mentions}\nThis message has been approved by {author}."
+            "**PING!** Mentioning **{count}** user{s}:\n{mentions}\nTo add yourself to this list, type `{prefix}notifyme`. This message has been approved by {author}."
         ],
 
         "notify_stasis": [
@@ -555,22 +563,23 @@
         "seer": {
             "sg": "seer",
             "pl": "seers",
-            "desc": "Your job is to detect the wolves; you may have a vision once per night. Type `see <player>` in DMs to see their role."
+            "desc": "Your goal is to detect the wolves; you may have a vision once per night. Type `see <player>` in DMs to see their role."
         },
         "villager": {
             "sg": "villager",
             "pl": "villagers",
-            "desc": "Your job is to lynch all of the wolves."
+            "desc": "Your goal is to lynch all of the wolves."
         },
         "wolf": {
             "sg": "wolf",
             "pl": "wolves",
-            "desc": "Your job is to kill all of the villagers. Type `kill <player>` in DMs to kill them."
+            "desc": "Your goal is to kill all of the villagers. Type `kill <player>` in DMs to kill them."
         },
 
         "cursed": {
             "sg": "cursed",
-            "pl": "cursed"
+            "pl": "cursed",
+            "desc": "Cursed players are cursed to be seen as a wolf, rather than their proper role."
         }
     },
 

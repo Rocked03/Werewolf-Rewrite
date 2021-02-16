@@ -1,4 +1,4 @@
-import aiosqlite, asyncio, copy, difflib, discord, random, sys, traceback, typing
+import aiosqlite, asyncio, copy, difflib, discord, random, sys, textwrap, traceback, typing
 from datetime import datetime, timedelta
 from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
@@ -18,24 +18,28 @@ from settings import *
 
 
 # ---- top priority
-# 
-# ---- medium priority
-# logs
 # roles/perms
+# ---- medium priority
 # info
 # ---- low priority
 # more roles
+# inbuilt slash commands
+# channel description updates
 # clean up command checks (single function?)
 # nicer message formats (eg embeds and stuff)
+# clean up help command
 # clean up init
 # config/setting example updates
 # requirements thingy
+# better file management
 
 
 
 
-class Game(commands.Cog, name="Game"):
+class Game(commands.Cog, GameEngine, name="Game"):
     def __init__(self, bot):
+        super().__init__(bot)
+
         self.bot = bot
 
         self.stasis = Stasis()
@@ -47,29 +51,6 @@ class Game(commands.Cog, name="Game"):
         self.bot.notify_name = 'notify'
         self.bot.notify_lock = asyncio.Lock()
         self.bot.loop.create_task(self.notify.setup(self.bot.notify_name, name=self.bot.notify_name))
-
-
-        self.engine = GameEngine(bot)
-
-        self.lg = self.engine.lg
-        self.lgr = self.engine.lgr
-        self.lgt = self.engine.lgt
-        self.session_update = self.engine.session_update
-        self.player_update = self.engine.player_update
-        self.preplayer_update = self.engine.preplayer_update
-
-        self.pl = self.engine.pl
-        self.s = self.engine.s
-        self.a = self.engine.a
-        self.get_name = self.engine.get_name
-        self.listing = self.engine.listing
-
-        self.player_death = self.engine.player_death
-
-        self.roles_list = self.engine.roles_list
-        self.roles = self.engine.roles
-        self.templates = self.engine.templates
-        self.gamemodes = self.engine.gamemodes
 
         self.bot.sessions = {}
         self.bot.sessiontasks = {}
@@ -108,16 +89,16 @@ class Game(commands.Cog, name="Game"):
         session = self.find_session_channel(channel.id)
         if session: return await ctx.reply(self.lg('session_already_exists'))
 
-        self.engine.session_setup(channel)
+        self.session_setup(channel)
         await ctx.reply(self.lg('session_init', channel=channel.mention, channelid=channel.id))
-        # log
+        await self.log(2, 'session init', self.ulog(ctx.author), channel=channel.id)
 
     async def init_sessions(self, channels):
         await self.bot.wait_until_ready()
         for c in channels:
             channel = self.bot.get_channel(c)
-            self.engine.session_setup(channel)
-        # log
+            self.session_setup(channel)
+        await self.log(2, 'session init', "<System>", channel=channel.id)
 
     @admin()
     @commands.command()
@@ -131,7 +112,7 @@ class Game(commands.Cog, name="Game"):
         check = lambda m: m.author.id == ctx.author.id and m.channel.id == ctx.channel.id
         try: msg = await self.bot.wait_for('message', timeout=5, check=check)
         except asyncio.TimeoutError: msg = None
-        else: msg = None if msg.content.lower() not in self.engine.lang['phrases']['confirm_yes'] else msg
+        else: msg = None if msg.content.lower() not in self.lang['phrases']['confirm_yes'] else msg
 
         if msg is None:
             return await message.edit(content=self.lg('timed_out'))
@@ -139,7 +120,7 @@ class Game(commands.Cog, name="Game"):
         self.bot.sessions.pop(session.id)
 
         await ctx.reply(self.lg('session_destroyed', sessionid=channel.id))
-        # log
+        await self.log(2, 'session destroy', self.ulog(ctx.author), session=session.id)
 
 
     @commands.Cog.listener()
@@ -147,12 +128,9 @@ class Game(commands.Cog, name="Game"):
         if message.author.id == self.bot.user.id: return
 
         if not message.guild:
-            # log
+            await self.log(0, 'dm', _from=self.ulog(message.author), content=message.content)
 
-            if message.content.startswith(BOT_PREFIX):
-                return await self.bot.process_commands(message)
-
-            if message.content.split(' ')[0] in [x for c in self.bot.commands for x in [c.name] + c.aliases]:
+            if message.content.split(' ')[0].lower() in [x for c in self.bot.commands for x in [c.name] + c.aliases]:
                 newmsg = copy.copy(message)
                 newmsg.content = BOT_PREFIX + newmsg.content
                 return await self.bot.process_commands(newmsg)
@@ -182,7 +160,7 @@ class Game(commands.Cog, name="Game"):
         elif isinstance(error, commands.CommandOnCooldown):
             hours, remainder = divmod(int(round(error.retry_after, 2)), 3600)
             minutes, seconds = divmod(remainder, 60)
-            return await ctx.reply(self.lg('cooldown', time=', '.join([f"**{t}** {n}" for t, n in zip([hours, minutes, seconds], ['hours', 'minutes', 'seconds']) if t])))
+            return await ctx.reply(self.lg('cooldown', time=self.timestr_to_text(error.retry_after)))
 
         elif isinstance(error, commands.CheckFailure):
             return await ctx.reply(self.lg('missing_perms'))
@@ -194,6 +172,10 @@ class Game(commands.Cog, name="Game"):
         else:
             print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
             traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+    @commands.Cog.listener()
+    async def on_command_completion(self, ctx):
+        await self.log(0, 'USE CMD', self.ulog(ctx.author), f'`{ctx.message.content}`')
 
 
     @commands.command(aliases=['j'])
@@ -216,6 +198,9 @@ class Game(commands.Cog, name="Game"):
         if stasis > 0: return await ctx.send(self.lg('stasis_count', count=stasis, s=self.s(stasis), pl=self.pl(stasis)))
         elif stasis == -1: return await ctx.send(self.lg('indefinite_stasis'))
 
+        if session.in_session:
+            return await ctx.send(self.lg('already_in_session'))
+
         successful, msg = await self.player_join(session, ctx.author)
         await ctx.reply(msg)
 
@@ -224,7 +209,7 @@ class Game(commands.Cog, name="Game"):
 
         if gamemode:
             session = await self.session_update('pull', session)
-            self.vote_gamemode(session, gamemode)
+            self.vote_gamemode(session, ctx.author.id, gamemode)
 
 
     async def player_join(self, session, user, real=True):
@@ -261,7 +246,7 @@ class Game(commands.Cog, name="Game"):
         sessiontasks['wait_timer'] = datetime.utcnow() + timedelta(seconds=WAIT_AFTER_JOIN)
         sessiontasks['idle'][user.id] = self.bot.loop.create_task(self.player_idle(session, user.id))
 
-        # log
+        await self.log(1, 'join', self.slog(session), self.ulog(user), real=real)
 
         return True, msg
 
@@ -313,7 +298,7 @@ class Game(commands.Cog, name="Game"):
                 check = lambda m: m.author.id == ctx.author.id and m.channel.id == ctx.channel.id
                 try: msg = await self.bot.wait_for('message', timeout=5, check=check)
                 except asyncio.TimeoutError: msg = None
-                else: msg = None if msg.content.lower() not in self.engine.lang['phrases']['confirm_yes'] else msg
+                else: msg = None if msg.content.lower() not in self.lang['phrases']['confirm_yes'] else msg
 
                 if msg is None:
                     return await message.edit(content=self.lg('timed_out'))
@@ -350,7 +335,9 @@ class Game(commands.Cog, name="Game"):
 
         # STASIS
         # TRAITOR
-        # log
+        
+        if reason == 'leave': await self.log(1, 'leave', self.slog(session), self.ulog(player.user))
+        elif reason == 'fleave': await self.log(2, 'fleave ingame', self.slog(session), self.ulog(player.user))
 
         return session, msg
 
@@ -358,7 +345,9 @@ class Game(commands.Cog, name="Game"):
         session = await self.player_death(session, player, 'leave', 'bot')
         msgtype = 'leave_lobby' if reason == 'leave' else 'guild_leave_lobby'
         msg = self.lg('leave_lobby', name=player.nickname, count=session.player_count, s=self.s(session.player_count))
-        # log
+        
+        if reason == 'fleave': await self.log(2, 'fleave outofgame', self.slog(session), self.ulog(player.user))
+
         return session, msg
 
     @commands.Cog.listener()
@@ -569,10 +558,10 @@ class Game(commands.Cog, name="Game"):
         ))
 
 
-        orig_roles = self.engine.sort_roles_dict(session.original_roles_amount)
+        orig_roles = self.sort_roles_dict(session.original_roles_amount)
         # traitor stuff
 
-        role_dict = self.engine.sort_roles_dict({x: [0, 0] for x in self.roles_list})
+        role_dict = self.sort_roles_dict({x: [0, 0] for x in self.roles_list})
         for player in session.players:
             role = player.role
             role_dict[role][0] += 1
@@ -648,7 +637,7 @@ class Game(commands.Cog, name="Game"):
             ))
 
         else:
-            await self.engine.run_game(session)
+            await self.run_game(session)
 
         if votes == 1:
             sessiontasks = self.bot.sessiontasks[session.id]
@@ -686,7 +675,7 @@ class Game(commands.Cog, name="Game"):
 
         player = self.find_player(session, ctx.author.id)
 
-        role_msg, info_msg = self.engine.send_role_info(session, player)
+        role_msg, info_msg = self.send_role_info(session, player)
         try:
             await player.send(role_msg)
             if info_msg:
@@ -695,7 +684,7 @@ class Game(commands.Cog, name="Game"):
         except discord.Forbidden:
             await session.send(self.lg('role_dm_off', mention=player.mention))
 
-    @commands.command(aliases=['roles'])
+    @commands.command(aliases=['roles', 'template'])
     async def role(self, ctx, *, param = None):
         """Displays list of roles if none specified, otherwise gives info on role. If gamemode specified, displays role table for gamemode."""
         session = self.find_session_player(ctx.author.id)
@@ -708,13 +697,14 @@ class Game(commands.Cog, name="Game"):
             else: msgtype = 'gmroles'
         elif param == 'list': msgtype = 'list'
         elif len(self._autocomplete(param, [self.lgr(r) for r in self.roles()])[0]) == 1: msgtype = 'role'
+        elif len(self._autocomplete(param, [self.lgr(r) for r in self.templates])[0]) == 1: msgtype = 'template'
         else: msgtype = 'gamemode'
 
         if msgtype == 'list':
             return await ctx.reply(self.role_list())
 
-        if msgtype == 'role':
-            return await ctx.reply(self.role_info(param))
+        if msgtype in ['role', 'template']:
+            return await ctx.reply(self.role_info(param, msgtype))
 
         if msgtype in ['gamemode', 'gmroles']:
             num_players = -1
@@ -736,7 +726,7 @@ class Game(commands.Cog, name="Game"):
             if num_players == -1:
                 return await ctx.reply(self.role_table(gamemode))
 
-            game_roles = self.get_roles(gamemode, num_players)
+            game_roles = self.get_gamemode_roles(gamemode, num_players)
 
             if game_roles is None: return await ctx.reply(self.lg('gamemode_boundaries'))
 
@@ -757,12 +747,13 @@ class Game(commands.Cog, name="Game"):
         msg.append("```")
         return '\n'.join(msg)
 
-    def role_info(self, string):
-        role = self._autocomplete(string, [self.lgr(r) for r in self.roles()])[0][0]
-        roleobj = self.roles_list[role]
+    def role_info(self, string, _type):
+        role = self._autocomplete(string, [self.lgr(r) for r in self.roles() + self.templates])[0][0]
         msg = []
-        msg.append(f"**Role name**: {self.lgr(role)}")
-        msg.append(f"**Team**: {self.lgt(roleobj.team)}")
+        msg.append(f"**{_type.capitalize()} name**: {self.lgr(role).capitalize()}")
+        if _type == 'role':
+            roleobj = self.roles_list[role]
+            msg.append(f"**Team**: {self.lgt(roleobj.team)}")
         msg.append(f"**Description**: {self.lgr(role, 'desc')}")
         return '\n'.join(msg)
 
@@ -777,7 +768,7 @@ class Game(commands.Cog, name="Game"):
         msg = [f'Role table for gamemode **{gamemode}**']
         msg.append('```py')
         msg.append(' ' * (WIDTH + 2) + ', '.join(f"{x:02d}" for x in range(gmobj['min_players'], gmobj['max_players'] + 1)))
-        for role in self.engine.sort_roles(role_dict):
+        for role in self.sort_roles(role_dict):
             ns = role_dict[role]
             msg.append(f"{self.lgr(role)}{' ' * (WIDTH - len(role))}: {', '.join((f'''{' ' if n < 10 else ''}{n}''') for n in ns)}")
         msg.append('```')
@@ -795,16 +786,16 @@ class Game(commands.Cog, name="Game"):
 
         if session.in_session:
             if session.day:
-                seconds = timedelta(seconds=self.engine.dtmout) - (datetime.utcnow() - session.day_start)
+                seconds = timedelta(seconds=self.dtmout) - (datetime.utcnow() - session.day_start)
                 timeofday = 'daytime'
                 sunstate = 'sunset'
             else:
-                seconds = timedelta(seconds=self.engine.ntmout) - (datetime.utcnow() - session.night_start)
+                seconds = timedelta(seconds=self.ntmout) - (datetime.utcnow() - session.night_start)
                 timeofday = 'nighttime'
                 sunstate = 'sunrise'
             return await ctx.reply(self.lg('game_time',
                 daynight=timeofday,
-                time=self.engine.timedelta_to_str(seconds),
+                time=self.timedelta_to_str(seconds),
                 change=sunstate
             ))
 
@@ -812,8 +803,8 @@ class Game(commands.Cog, name="Game"):
             if session.player_count > 0:
                 timeleft = timedelta(seconds=GAME_START_TIMEOUT - (datetime.utcnow() - session.first_join).seconds)
                 return await ctx.reply(self.lg('start_timeout_left',
-                    time=self.engine.timedelta_to_str(timeleft),
-                    timeout=self.engine.timedelta_to_str(timedelta(seconds=GAME_START_TIMEOUT))
+                    time=self.timedelta_to_str(timeleft),
+                    timeout=self.timedelta_to_str(timedelta(seconds=GAME_START_TIMEOUT))
                 ))
             else:
                 return await ctx.reply(self.lg('no_session_channel_join'))
@@ -833,7 +824,10 @@ class Game(commands.Cog, name="Game"):
         if not player.alive: return
 
         if session.night: return
-        if (datetime.utcnow() - session.day_start).total_seconds() <= 2: return
+
+        discussiontime = DISCUSSION_LENGTH - (datetime.utcnow() - session.day_start).total_seconds()
+        if discussiontime > 0: 
+            return await ctx.reply(self.lg('day_discussion', time=self.timestr_to_text(discussiontime)))
 
         if target is None:
             cmd = self.bot.get_command("votes")
@@ -858,7 +852,7 @@ class Game(commands.Cog, name="Game"):
         await ctx.reply(self.lg('lynch_vote', name=self.get_name(to_lynch)))
         # vote numbers or something?
 
-        # log
+        await self.log(1, 'lynch vote', self.slog(session), self.ulog(ctx.author), target=self.ulog(to_lynch.user))
 
     @commands.command(aliases=['r'])
     async def retract(self, ctx):
@@ -898,7 +892,9 @@ class Game(commands.Cog, name="Game"):
                 player.vote = None
                 session = await self.player_update(session, player)
 
-                return await ctx.reply(self.lg('retract_vote', pl=''))
+                await ctx.reply(self.lg('retract_vote', pl=''))
+                await self.log(1, 'lynch retract', self.slog(session), self.ulog(ctx.author))
+                return
 
             else:
                 if 'kill' in player.commands:
@@ -915,7 +911,7 @@ class Game(commands.Cog, name="Game"):
                     await ctx.reply(self.lg('retract_kill', pl=self.s(len(former_targets))))
 
                     await self.wolfchat(session, self.lg('retract_kill_wolfchat', name=self.get_name(player)), bot=True)
-                    # log
+                    await self.log(1, 'kill retract', self.slog(session), self.ulog(ctx.author))
 
     @commands.command(aliases=['abs'])
     async def abstain(self, ctx):
@@ -941,9 +937,10 @@ class Game(commands.Cog, name="Game"):
 
         player.vote = 'abstain'
         session = await self.player_update(session, player)
-        # log
 
-        return await ctx.reply(self.lg('abstain', name=self.get_name(player)))
+        return await ctx.reply(self.lg('abstain_vote', name=self.get_name(player)))
+
+        await self.log(1, 'lynch abstain', self.slog(session), self.ulog(ctx.author))
 
 
     @commands.command(hidden=True)
@@ -1004,7 +1001,7 @@ class Game(commands.Cog, name="Game"):
             await ctx.reply(self.lg('kill_voted', listing=listing))
             await self.wolfchat(session, self.lg('kill_voted_wolfchat', name=self.get_name(player), listing=listing), bot=True)
 
-            # log
+            await self.log(1, 'kill vote', self.slog(session), self.ulog(ctx.author), target=' '.join([self.ulog(x.user) for x in valid_targets]))
 
     @commands.command(hidden=True)
     async def see(self, ctx, *, target=None):
@@ -1036,7 +1033,7 @@ class Game(commands.Cog, name="Game"):
         if player.role == 'seer':
             seen_role = targetpl.seen_role
             # deceit totem
-            msg = self.lg('see_is', a=self.a(seen_role), role=seen_role)
+            msg = self.lg('see_is', a=self.a(self.lgr(seen_role)), role=self.lgr(seen_role))
 
         await ctx.reply(self.lg('see_result', name=self.get_name(targetpl), msg=msg))
 
@@ -1045,7 +1042,7 @@ class Game(commands.Cog, name="Game"):
         player._target = targetpl.id
         session = await self.player_update(session, player)
 
-        # log
+        await self.log(1, 'see', self.slog(session), self.ulog(ctx.author), seen=self.ulog(targetpl.user), _as=seen_role)
 
 
 
@@ -1069,12 +1066,7 @@ class Game(commands.Cog, name="Game"):
             notifylist = await self.notify.get_all(
                 lock=self.bot.notify_lock, name=self.bot.notify_name, conn=conn)
 
-        online = [
-            x for x in [
-                ctx.guild.get_member(y) for y in notifylist 
-                if y not in stasisised and y not in [
-                    p for s in self.bot.sessions.values() for p in s.player_ids]] 
-            if x is not None and x.status in [discord.Status.online, discord.Status.idle]]
+        online = [x for x in [ctx.guild.get_member(y) for y in notifylist if y not in stasisised and y not in [p for s in self.bot.sessions.values() for p in s.player_ids]] if x is not None and x.status in [discord.Status.online, discord.Status.idle]]
 
         if not online:
             await ctx.reply(self.lg('no_notify'))
@@ -1139,9 +1131,9 @@ class Game(commands.Cog, name="Game"):
             await ctx.author.send('\n'.join(msg))
             await ctx.message.add_reaction('👍')
         except discord.Forbidden:
-            await ctx.send(self.lg('dm_off', mention=player.mention))
+            return await ctx.send(self.lg('dm_off', mention=player.mention))
 
-        # log
+        await self.log(2, 'revealroles', self.slog(session), self.ulog(ctx.author))
 
 
 
@@ -1168,6 +1160,8 @@ class Game(commands.Cog, name="Game"):
             success, msg = await self.player_join(session, t)
             await ctx.reply(f"**[{t.mention} ({t.id})]**: {msg}")
 
+        await self.log(2, 'force join', self.slog(session), self.ulog(ctx.author), targets=' '.join([str(t.id) for t in target]))
+
     @force.command(name='leave', aliases=['l'])
     async def fleave(self, ctx, session: typing.Union[commands.TextChannelConverter, commands.UserConverter, PseudouserConverter], target: commands.Greedy[typing.Union[commands.UserConverter, PseudouserConverter]] = None):
         """Kicks players from game."""
@@ -1178,6 +1172,8 @@ class Game(commands.Cog, name="Game"):
             if target is not None: target = [a] + target
             else: target = [a]
         if not session: return await ctx.reply(self.lg('no_session_channel'))
+
+        final_targets = []
 
         if not session.in_session:
             for t in target:
@@ -1190,6 +1186,8 @@ class Game(commands.Cog, name="Game"):
 
                 session = await self.session_update('pull', session)
                 session, msg = await self.preplayer_leave(session, self.find_preplayer(session, t.id))
+
+                final_targets.append(t.id)
 
                 await ctx.reply(f"**[{name}]**: {msg}")
         else:
@@ -1207,7 +1205,11 @@ class Game(commands.Cog, name="Game"):
                 session, msg = await self.player_leave(session, self.get_player(session, t.id))
                 session = await self.player_update(session, self.get_player(session, t.id))
 
+                final_targets.append(t.id)
+
                 await ctx.reply(f"**[{name}]**: {msg}")
+
+        await self.log(2, 'force leave', self.slog(session), self.ulog(ctx.author), targets=' '.join([str(x) for x in final_targets]))
 
     @force.command(name='start')
     async def fstart(self, ctx, session: int = None):
@@ -1218,23 +1220,32 @@ class Game(commands.Cog, name="Game"):
 
         if session.in_session: return await ctx.reply("The game is already in session!")
 
+        await self.log(2, 'force start', self.slog(session), self.ulog(ctx.author))
+
         await ctx.reply(f"Starting...")
-        await self.engine.run_game(session)
-        # log
+        await self.run_game(session)
 
     @force.command(name='stop')
-    async def fstop(self, ctx, session: int = None):
+    async def fstop(self, ctx, session: typing.Union[str, int] = None, *, force: str = None):
         """Stops the game."""
-        if session is not None: session = self.find_session_channel(session)
-        else: session = self.find_session_channel(ctx.channel.id)
+        if isinstance(session, int): session = self.find_session_channel(session)
+        else: 
+            force = ' '.join(filter(None, [session, force]))
+            session = self.find_session_channel(ctx.channel.id)
         if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         if not session.in_session: return await ctx.reply("The game not yet in session!")
 
-        session.in_session = False
-        session = await self.session_update('push', session, ['in_session'])
+        
         await ctx.reply(f"Stopping...")
-        # log
+
+        await self.log(2, 'force stop', self.slog(session), self.ulog(ctx.author))
+
+        if force == '-force':
+            session.in_session = False
+            session = await self.session_update('push', session, ['in_session'])
+        else:
+            await self.end_game(session=session, reason="The game has been stopped forcefully.", end_stats=self.end_game_stats(session))
 
     @force.command(name='timeset', aliases=['settime', 'ts'])
     async def ftimeset(self, ctx, session: typing.Union[int, str], *, time = None):
@@ -1259,7 +1270,7 @@ class Game(commands.Cog, name="Game"):
         session = await self.session_update('push', session, ['_daynight'])
 
         await ctx.reply(f"Setting time to {time}")
-        # log
+        await self.log(2, 'force timeset', self.slog(session), self.ulog(ctx.author), to=time)
 
     @force.command(name='day', hidden=True)
     async def fday(self, ctx):
@@ -1306,7 +1317,8 @@ class Game(commands.Cog, name="Game"):
         listing = self.listing([f"{x.mention} ({x.id})" for x in targeted])
 
         await ctx.reply(f"Set {targeter.mention}'s ({targeter.id}) target(s) to {listing}")
-        # log
+        
+        await self.log(2, 'force target', self.slog(session), self.ulog(ctx.author), player=targeter.id, target=' '.join([t.id for t in targeted]))
 
     @force.command(name='vote')
     async def fvote(self, ctx, session: typing.Union[commands.TextChannelConverter, commands.UserConverter, PseudouserConverter], target: commands.Greedy[typing.Union[commands.UserConverter, PseudouserConverter, str]] = None):
@@ -1337,7 +1349,8 @@ class Game(commands.Cog, name="Game"):
         session = await self.player_update(session, player)
 
         await ctx.reply(f"Set {targeter.mention}'s ({targeter.id}) vote to {targeted.mention} ({targeted.id})")
-        # log
+        
+        await self.log(2, 'force vote', self.slog(session), self.ulog(ctx.author), player=targeter.id, target=targeted.id)
 
     @force.command(name='role')
     async def frole(self, ctx, session: typing.Union[commands.TextChannelConverter, commands.UserConverter, PseudouserConverter], target: commands.Greedy[typing.Union[commands.UserConverter, PseudouserConverter, str]] = None):
@@ -1358,6 +1371,7 @@ class Game(commands.Cog, name="Game"):
         role = ' '.join(target[1:]).lower()
         if role not in [self.lgr(r) for r in self.roles()]:
             return await ctx.reply(f"Cannot find role named `{role}`")
+        role = next(r for r in self.roles() if role == self.lgr(r))
 
         newrole = self.roles_list[role](player.player)
         newrole.template = player.template
@@ -1370,9 +1384,10 @@ class Game(commands.Cog, name="Game"):
         session = await self.player_update(session, newrole)
 
         await ctx.reply(f"Set {player.mention}'s ({player.id}) role to `{role}`")
-        # log
 
-        role_msg, info_msg = self.engine.send_role_info(session, newrole)
+        await self.log(2, 'force role', self.slog(session), self.ulog(ctx.author), target=player.id, role=role)
+
+        role_msg, info_msg = self.send_role_info(session, newrole)
         try:
             await newrole.send(role_msg)
             if info_msg:
@@ -1397,8 +1412,9 @@ class Game(commands.Cog, name="Game"):
         if player is None: return await ctx.reply(f"**{target[0].display_name} ({target[0].id})** is not in-game!")
 
         template = ' '.join(target[1:]).lower()
-        if template not in self.templates:
+        if template not in [self.lgr(t) for t in self.templates]:
             return await ctx.reply(f"Cannot find template named `{template}`")
+        template = next(t for t in self.templates if template == self.lgr(t))
 
         session = await self.session_update('pull', session)
         player = self.find_player(session, target[0].id)
@@ -1407,7 +1423,8 @@ class Game(commands.Cog, name="Game"):
         session = await self.player_update(session, player)
 
         await ctx.reply(f"Toggled {player.mention}'s' ({player.id}) `{template}` template to `{not current}`")
-        # log
+
+        await self.log(2, 'force template', self.slog(session), self.ulog(ctx.author), target=player.id, template=role)
 
     @force.command(name='gamemode', aliases=['gm'])
     async def fgamemode(self, ctx, session: typing.Union[commands.TextChannelConverter, str], *, mode: str = None):
@@ -1440,7 +1457,6 @@ class Game(commands.Cog, name="Game"):
                     options=', '.join([f"`{x}`" for x in choice])
                 ))
             await ctx.reply('\n'.join(msg))
-            # log
             return
 
         mode = choice[0]
@@ -1448,7 +1464,7 @@ class Game(commands.Cog, name="Game"):
         session = await self.session_update('push', session, ['gamemode'])
 
         await ctx.reply(f"Set the gamemode to `{mode}`")
-        # log
+        await self.log(2, 'force gamemode', self.slog(session), self.ulog(ctx.author), mode=mode)
 
     @force.command(name='reveal', aliases=['rv'])
     async def freveal(self, ctx, session: typing.Union[commands.TextChannelConverter, str], *, mode: str = None):
@@ -1471,7 +1487,7 @@ class Game(commands.Cog, name="Game"):
         session = await self.session_update('push', session, ['reveal'])
 
         await ctx.reply(f"Set the reveal to `{mode}`")
-        # log
+        await self.log(2, 'force reveal', self.slog(session), self.ulog(ctx.author), reveal=session.reveal)
 
     @force.group(name='stasis')
     async def fstasis(self, ctx):
@@ -1486,6 +1502,7 @@ class Game(commands.Cog, name="Game"):
             new = await self.stasis.update(user.id, count, setcount=True,
                 lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
         await ctx.reply(f"Set {user.mention}'s' ({user.id}) stasis to {new} game{self.s(new)}.")
+        await self.log(2, 'stasis set', self.ulog(ctx.author), target=self.ulog(user), to=new)
 
     @fstasis.command(name='add')
     async def fadd(self, ctx, user: commands.UserConverter, count: int):
@@ -1494,6 +1511,7 @@ class Game(commands.Cog, name="Game"):
             new = await self.stasis.update(user.id, count,
                 lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
         await ctx.reply(f"Added {count} game{self.s(count)} to {user.mention}'s ({user.id}) stasis, bringing their stasis to {new} game{self.s(new)}.")
+        await self.log(2, 'stasis add', self.ulog(ctx.author), target=self.ulog(user), add=count, total=new)
 
     @fstasis.command(name='clear')
     async def fclear(self, ctx, user: commands.UserConverter):
@@ -1502,6 +1520,7 @@ class Game(commands.Cog, name="Game"):
             new = await self.stasis.update(user.id, 0, setcount=True,
                 lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
         await ctx.reply(f"Cleared {user.mention}'s ({user.id}) stasis.")
+        await self.log(2, 'stasis clear', self.ulog(ctx.author), target=self.ulog(user))
 
 
 
@@ -1561,7 +1580,7 @@ class Game(commands.Cog, name="Game"):
         return None
 
 
-    def get_roles(self, gamemode, playercount):
+    def get_gamemode_roles(self, gamemode, playercount):
         if gamemode in self.gamemodes.keys():
             gmobj = self.gamemodes[gamemode]
 
@@ -1618,11 +1637,11 @@ class Game(commands.Cog, name="Game"):
                             # STASIS
 
                             session = await self.session_update('pull', session)
-                            session = await self.engine.player_death(session, player, 'idle', 'bot')
+                            session = await self.player_death(session, player, 'idle', 'bot')
 
                             # TRAITOR
 
-                            # log
+                            await self.log(1, 'idle out', self.slog(session), self.ulog(player.user))
 
                             session = await self.session_update('push', session, ['players'])
 
@@ -1640,11 +1659,11 @@ class Game(commands.Cog, name="Game"):
             # unlock lobby
 
             for player in session.preplayers:
-                session = await self.engine.player_death(session, player, 'game cancel', 'bot')
+                session = await self.player_death(session, player, 'game cancel', 'bot')
 
             # session = await self.session_update('push', session)
 
-            self.engine.session_setup(session.channel)
+            self.session_setup(session.channel)
 
     async def wait_timer_loop(self, session):
         timer = datetime.utcnow()
@@ -1710,6 +1729,8 @@ class Game(commands.Cog, name="Game"):
 
         if in_channel:
             if session.channel.id != ctx.channel.id: return False, ''
+
+
 
 
 
