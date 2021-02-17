@@ -18,18 +18,15 @@ from settings import *
 
 
 # ---- top priority
-# roles/perms
-# ---- medium priority
 # info
-# @everyone mention escaping
-# ---- low priority
+# ---- medium priority
 # more roles
 # inbuilt slash commands
+# nicer message formats (eg embeds and stuff)
+# ---- low priority
 # channel description updates
 # clean up command checks (single function?)
-# nicer message formats (eg embeds and stuff)
 # clean up help command
-# clean up init
 # config/setting example updates
 # requirements thingy
 # better file management
@@ -71,6 +68,9 @@ class Game(commands.Cog, GameEngine, name="Game"):
             self.randomword = lambda: (' '.join(self.rw.word(include_parts_of_speech=[x], word_max_length=8) for x in ['adjectives', 'nouns'])).title()
 
         self.bot.loop.create_task(self.init_sessions(GAME_CHANNEL_ID))
+
+
+        self.github_link = "https://github.com/Rocked03/Werewolf-Rewrite"
 
     def admin():
         def predicate(ctx):
@@ -208,8 +208,6 @@ class Game(commands.Cog, GameEngine, name="Game"):
         if not successful:
             return
 
-        await self.player_give_perms(session.channel, ctx.author, self.bot.PLAYERS_ROLE)
-
         if gamemode:
             session = await self.session_update('pull', session)
             self.vote_gamemode(session, ctx.author.id, gamemode)
@@ -238,12 +236,12 @@ class Game(commands.Cog, GameEngine, name="Game"):
             sessiontasks['game_start_timeout_loop'] = self.bot.loop.create_task(self.game_start_timeout_loop(session))
             sessiontasks['wait_timer_loop'] = self.bot.loop.create_task(self.wait_timer_loop(session))
             # lobby status waiting to start
-            msg = self.lg('first_join', name=user.display_name)
+            msg = self.lg('first_join', name=self.get_name(newplayer))
 
         else:
-            msg = self.lg('joined_game', name=user.display_name, count=session.player_count)
+            msg = self.lg('joined_game', name=self.get_name(newplayer), count=session.player_count)
 
-        # add role
+        await self.player_give_perms(session.channel, user, self.bot.PLAYERS_ROLE)
 
         sessiontasks = self.bot.sessiontasks[session.id]
         sessiontasks['wait_timer'] = datetime.utcnow() + timedelta(seconds=WAIT_AFTER_JOIN)
@@ -1075,7 +1073,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
             notifylist = await self.notify.get_all(
                 lock=self.bot.notify_lock, name=self.bot.notify_name, conn=conn)
 
-        online = [x for x in [ctx.guild.get_member(y) for y in notifylist if y not in stasisised and y not in [p for s in self.bot.sessions.values() for p in s.player_ids]] if x is not None and x.status in [discord.Status.online, discord.Status.idle]]
+        online = [x for x in [ctx.guild.get_member(y) for y in notifylist if y not in stasisised and y not in [p for s in self.bot.sessions.values() for p in s.player_ids]] if x is not None and x.status in [discord.Status.online, discord.Status.idle, discord.Status.dnd, discord.Status.offline][:NOTIFY_LEVEL]]
 
         if not online:
             await ctx.reply(self.lg('no_notify'))
@@ -1115,7 +1113,15 @@ class Game(commands.Cog, GameEngine, name="Game"):
         else: await ctx.reply(self.lg('no_stasis'))
 
 
+    @commands.command()
+    async def info(self, ctx):
+        """Info about the bot."""
+        await ctx.reply(self.lg('info'))
 
+    @commands.command(aliases=['source'])
+    async def github(self, ctx):
+        """The link to the bot's source code."""
+        await ctx.reply(self.github_link)
 
 
     @admin()

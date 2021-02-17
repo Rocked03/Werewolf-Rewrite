@@ -1,21 +1,15 @@
 BOT_PREFIX = '!'
-TOKEN = 'bot token goes here'
-GAME_CHANNEL_ID = [1234567890] # replace this. lobby channel ids (where all gameplay happens).
-DEBUG_CHANNEL_ID = 1234567890 # replace this. debug channel id (for all your errors and debug stuff). should be different than GAME_CHANNEL_ID.
-WEREWOLF_SERVER_ID = 1234567890 # replace this. id of server the bot is running on
-PLAYERS_ROLE_ID = 1234567890 # replace this. id of 'Players' role in the server
-ADMINS_ROLE_ID = [1234567890] # replace this. ids of 'Admins' roles in the server
-WEREWOLF_NOTIFY_ROLE_ID = 1234567890 # replace this. id of optional 'Werewolf Notify' role in the server
-ADMINS = [1234567890, 2345678901, ...] # replace this. user ids to grant Werewolf Admin perms to. the bot owner automatically gets all perms.
-IGNORE_LIST = [] # users to ignore
+TOKEN = ''
+GAME_CHANNEL_ID = [12345, 23456] # replace these. lobby channel IDs (where all gameplay happens). (amount of channels optional)
+LOG_CHANNEL_ID = 12345 # replace this. debug channel ID (for all your errors and debug stuff). should be different than GAME_CHANNEL_ID.
+WEREWOLF_SERVER_ID = 12345 # replace this. ID of server the bot is running on
+PLAYERS_ROLE_ID = 12345 # replace this. ID of 'Players' role in the server
+ADMINS_ROLE_ID = [12345, 23456] # replace these. IDs of 'Admins' roles in the server
+PSEUDOUSER_MSG_CHANNEL_ID = 12345 # replace this. ID of pseudouser bot dm output channel. (optional, but required if adding debugging bots.)
 
-NOTIFY_FILE = 'notify.txt' # saving Werewolf Notify users
-BACKUP_INTERVAL = 300 # How often in seconds to backup stasis.json
-MESSAGE_LANGUAGE = 'en'
+MESSAGE_LANGUAGE = 'en' # language - corresponds to name.json lang file
 RETRY_RUN_GAME = 3
 
 LOG_FILE = 'debug.txt' # file to save debug stuff to
-MIN_LOG_LEVEL = 1
-# 0 to log everything, 1 to log only gameplay-related info, 2 to log only warnings
-STASIS_FILE = 'stasis.json' # file to save stasis information to
+MIN_LOG_LEVEL = 1 # 0 to log everything, 1 to log only gameplay-related info, 2 to log only warnings
 PLAYING_MESSAGE = '{0}info | {0}help | {0}join'.format(BOT_PREFIX) # playing message bot has on startup

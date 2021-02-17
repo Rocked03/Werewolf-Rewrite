@@ -1,5 +1,9 @@
 {
     "phrases": {
+        "info": [
+            "In **Werewolf**, there are two teams, village and wolves. The villagers try to get rid of all of the wolves, and the wolves try to kill all of the villagers.\nThere are two phases, night and day. During night, the wolves choose a target to kill, and some specific roles (e.g. seers) perform their actions. During day, the village discusses everything and chooses someone to lynch. Once you die, you can't talk in the lobby channel, but are free to discuss the game with other eliminated players.\n\nTo join a game, use `{prefix}join`. If you cannot chat in the lobby channel, then either a game is ongoing or you are dead.\nFor a list of roles, use the command `{prefix}roles`. For information on a particular role, use `{prefix}role role`. For statistics on the current game, use `{prefix}stats`. For a list of commands, use `{prefix} help`, or for help on a command, use `{prefix}help command`. To see the in-game time, use `{prefix}time`.\n\nThis bot has been coded by Rocked03#3304, and is based upon the original bot created by belungawhale#4813. To see the source code, use `{prefix}github`."
+        ],
+
         "now_daytime": [
             "It is now **daytime**. Discussion time is {time}, after which you may use `{prefix}vote <player>` to vote to lynch a player."
         ],
@@ -477,7 +481,7 @@
         ],
 
         "notify_remove": [
-            "Removed you to the notify ping list. To add yourself back, simply use the `{prefix}notifyme` command again."
+            "Removed you from the notify ping list. To add yourself back, simply use the `{prefix}notifyme` command again."
         ],
 
         "cooldown": [

@@ -21,7 +21,7 @@ class Owner(commands.Cog, name="Owner"):
     def __init__(self, bot):
         self.bot = bot
 
-    async def __local_check(self, ctx):
+    async def cog_check(self, ctx):
         return await self.bot.is_owner(self, ctx.author)
 
     def strfdelta(self, tdelta, fmt):

@@ -24,18 +24,6 @@ class GameState(Enum):
     DAY = 'day'
     GAME_TEARDOWN = 'game_teardown'
 
-class EventType(Enum):
-    LOBBY_JOIN = 'lobby_join'
-    LOBBY_LEAVE = 'lobby_leave'
-    GAME_SETUP = 'game_setup'
-    GAME_TEARDOWN = 'game_teardown'
-    SUNSET_TRANSITION = 'sunset_transition'
-    SUNRISE_TRANSITION = 'sunrise_transition'
-    PLAYER_DEATH = 'player_death'
-    PLAYER_IDLE = 'player_idle'
-    PLAYER_LYNCH = 'player_lynch'  # not to be confused by PLAYER_DEATH with DeathType LYNCH
-    PLAYER_ABSTAIN = 'player_abstain'
-
 
 class GameEngine:
     def __init__(self, bot):
@@ -127,7 +115,7 @@ class GameEngine:
                 0: '[DEBUG]',
                 1: '[INFO]',
                 2: '**[WARNING]**',
-                3: f'**[ERROR]** {self.bot.owner.mention}'
+                3: f'**[ERROR]** {ownermention}'
             }
 
             msg = ' '.join([str(x) for x in [levelmsg[level], prefix.upper(), ' '.join(args), ' '.join([f"{k.strip('_').replace('_', ' ').upper()}: {v}" for k, v in kwargs.items()])] if x])
@@ -1197,9 +1185,10 @@ class GameEngine:
         return sorted(real, key=self.get_name) + sorted(fake, key=lambda x: x.id)
 
     def get_name(self, player):
+        escape = lambda x: discord.utils.escape_mentions(discord.utils.escape_markdown(str(x)))
         member = player.player.user
-        if member: return str(member.display_name)
-        else: return str(player)
+        if member: return escape(member.display_name)
+        else: return escape(player)
 
     def find_player(self, session, player_id):
         try: return session.players[[x.id for x in session.players].index(player_id)]
@@ -1213,17 +1202,4 @@ class GameEngine:
     def timestr_to_text(self, x):
         x = self.split_time(x)
         return ', '.join([f"**{t}** {n}{self.s(t)}" for t, n in zip(x, ['hour', 'minute', 'second']) if t])
-
-
-
-class WinState(Enum):
-    NO_WIN = auto()
-    VILLAGE_WIN = auto()
-    WOLF_WIN = auto()
-
-
-class DeathType(Enum):
-    WOLF_KILL = auto()
-    LYNCH = auto()
-    IDLE = auto()
 

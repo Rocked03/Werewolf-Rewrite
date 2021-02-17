@@ -26,11 +26,6 @@ class Meta(commands.Cog, name="Meta"):
                         icon_url=self.bot.user.avatar_url)
         await ctx.send(embed=embed)
 
-    @commands.command()
-    async def info(self, ctx):
-        """Info about the bot"""
-        await ctx.reply("TBA")
-
 
 def setup(bot):
     bot.add_cog(Meta(bot))
