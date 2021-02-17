@@ -22,7 +22,7 @@ class Owner(commands.Cog, name="Owner"):
         self.bot = bot
 
     async def cog_check(self, ctx):
-        return await self.bot.is_owner(self, ctx.author)
+        return await self.bot.is_owner(ctx.author)
 
     def strfdelta(self, tdelta, fmt):
         d = {"days": tdelta.days}
