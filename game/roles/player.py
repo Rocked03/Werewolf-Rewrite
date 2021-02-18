@@ -82,9 +82,14 @@ class Bot:
         self.display_name = _name
         self.discriminator = _discriminator
 
+        self.avatar_url = 'https://emojipedia-us.s3.dualstack.us-west-1.amazonaws.com/thumbs/160/twitter/53/robot-face_1f916.png'
+
         self.mention = f"@{_name}#{_discriminator}\\🤖"
 
         self.channel = _channel
+
+    def __str__(self):
+        return f"{self._name}#{self.discriminator}"
 
     @property
     def name(self):
@@ -93,5 +98,7 @@ class Bot:
 
     async def send(self, *args, **kwargs):
         args = list(args)
-        args[0] = f"**[DM to {self.name} ({self.id})]**: {args[0]}"
+        msg = f"**[DM to {self.name} ({self.id})]**: {args[0] if args else ''}"
+        if args: args[0] = msg
+        else: args.append(msg)
         await self.channel.send(*args, **kwargs)

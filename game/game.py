@@ -18,18 +18,22 @@ from settings import *
 
 
 # ---- top priority
-# info
+# 
 # ---- medium priority
 # more roles
-# inbuilt slash commands
 # nicer message formats (eg embeds and stuff)
+# fix log message errors on boot
 # ---- low priority
-# channel description updates
-# clean up command checks (single function?)
 # clean up help command
+# clean up lang json files
 # config/setting example updates
 # requirements thingy
 # better file management
+# ---- ideas
+# inbuilt slash commands
+# channel description updates
+# clean up command checks (single function?)
+
 
 
 
@@ -53,8 +57,6 @@ class Game(commands.Cog, GameEngine, name="Game"):
         self.bot.sessions = {}
         self.bot.sessiontasks = {}
         self.bot.sessionlock = {}
-        # self.wait_timer = datetime.utcnow()
-        # self.wait_bucket = WAIT_BUCKET_INIT
 
         self.reveal_aliases = {
             'reveal': ['reveal', 'rev', 'rvl' 'r'],
@@ -133,18 +135,17 @@ class Game(commands.Cog, GameEngine, name="Game"):
 
             if message.content.split(' ')[0].lower() in [x for c in self.bot.commands for x in [c.name] + c.aliases]:
                 newmsg = copy.copy(message)
-                newmsg.content = BOT_PREFIX + newmsg.content
+                oldcontent = message.content.split(' ')
+                newmsg.content = ' '.join([BOT_PREFIX + oldcontent[0].lower(), ' '.join(oldcontent[1:])])
                 return await self.bot.process_commands(newmsg)
 
             session = self.find_session_player(message.author.id)
-            if not session: return await self.bot.process_commands(message)
+            if not session: return
 
             player = self.get_player(session, message.author.id)
             if session.in_session and player.alive and player.role in self.roles('wolfchat'):
                 if not message.content.startswith(BOT_PREFIX): await self.wolfchat(session, message)
-            else: return await self.bot.process_commands(message)
-
-        # await self.bot.process_commands(message)
+            else: return
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
@@ -182,16 +183,16 @@ class Game(commands.Cog, GameEngine, name="Game"):
     @commands.command(aliases=['j'])
     async def join(self, ctx, gamemode = None):
         """Joins the game if it has not started yet. Votes for gamemode if given."""
-        if not ctx.guild: return await ctx.reply(self.lg('use_in_channel_2', command=ctx.invoked_with))
+        if not ctx.guild: return await self.wwembed(c=ctx, ctx=ctx, title=self.lg('use_in_channel_2', command=ctx.invoked_with))
         session = self.find_session_channel(ctx.channel.id)
         if not session: return await ctx.reply(self.lg('no_session_channel'))
 
         session2 = self.find_session_player(ctx.author.id)
         if session2 is not None: 
             if session2.id == session.id:
-                return await ctx.reply(self.lg('already_in'))
+                return await self.wwembed(c=ctx, ctx=ctx, title=self.lg('already_in'))
             else:
-                return await ctx.reply(self.lg('already_in_elsewhere', channel=session.mention))
+                return await self.wwembed(c=ctx, ctx=ctx, title=self.lg('already_in_elsewhere', channel=session.mention))
 
         async with self.stasis.connection(self.bot.stasis_name) as conn:
             stasis = await self.stasis.get(ctx.author.id,
@@ -203,7 +204,8 @@ class Game(commands.Cog, GameEngine, name="Game"):
             return await ctx.send(self.lg('already_in_session'))
 
         successful, msg = await self.player_join(session, ctx.author)
-        await ctx.reply(msg)
+        # await ctx.reply(msg)
+        await self.wwembed(c=ctx, ctx=ctx, description=msg)
 
         if not successful:
             return
@@ -272,9 +274,10 @@ class Game(commands.Cog, GameEngine, name="Game"):
 
             successful, msg = await self.player_join(session, pseudouser, False)
             if successful:
-                msg += f"\n\nAdded pseudouser: {pseudouser.mention} ({pseudouser.id})"
+                msg += f"\nAdded pseudouser: {pseudouser.mention} ({pseudouser.id})"
                 self.bot.pseudousers.append(pseudouser)
-            await ctx.reply(msg)
+            # await ctx.reply(msg)
+            await self.wwembed(c=ctx, ctx=ctx, description=msg)
 
     class PseudouserConverter(commands.Converter):
         async def convert(self, ctx, argument: int):
@@ -285,7 +288,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
     async def leave(self, ctx, force=None):
         """Leaves the current game. If you need to leave, please do it before the game starts."""
         session = self.find_session_player(ctx.author.id)
-        if not session: return await ctx.reply(self.lg('no_session_user'))
+        if not session: return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
 
         if session.in_session:
             player = self.get_player(session, ctx.author.id)
@@ -379,7 +382,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
         """Casts a vote. Gamemode or Reveal if pre-game, Player if in-game."""
         session = self.find_session_player(ctx.author.id)
         if not session:
-            return await ctx.reply(self.lg('no_session_user'))
+            return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
 
         if session.in_session:
             cmd = self.bot.get_command("lynch")
@@ -446,7 +449,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
         if not session:
             session = self.find_session_channel(ctx.channel.id)
             if not session:
-                return await ctx.reply(self.lg('no_session_user'))
+                return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
 
         if not session.in_session:
             vote_dict = {'start': [], 'reveal': [], 'no reveal': []}
@@ -549,20 +552,23 @@ class Game(commands.Cog, GameEngine, name="Game"):
                 ))
 
         else:
-            msg = self.stats_msg(session)
-            return await ctx.reply(msg)
+            header, fields = self.stats_msg(session)
+            return await self.wwembed(c=ctx, ctx=ctx,
+                title=header[0],
+                description=header[1],
+                fields=fields
+            )
 
     def stats_msg(self, session):
-        msg = [self.lg('stats_info', daynight='day' if session.day else 'night', gamemode=session.gamemode['name'])]
-        msg.append(self.lg('stats_player_count',
+        msg_header = [self.lg('stats_info', daynight='day' if session.day else 'night', gamemode=session.gamemode['name'])]
+        msg_header.append(self.lg('stats_player_count',
             count=session.player_count,
             alive=len([x for x in session.players if x.alive]),
             dead=len([x for x in session.players if not x.alive])
         ))
-        msg.append(self.lg('stats_players',
-            alive='\n'.join(f"{self.get_name(x)} ({x.id})" for x in session.players if x.alive),
-            dead='\n'.join(f"{self.get_name(x)} ({x.id})" for x in session.players if not x.alive)
-        ))
+        msg_dict = dict()
+        msg_dict[self.lg('stats_living')] = '\n'.join(f"{x.mention} ({x.id})" for x in session.players if x.alive)
+        msg_dict[self.lg('stats_dead')] = '\n'.join(f"{x.mention} ({x.id})" for x in session.players if not x.alive)
 
 
         orig_roles = self.sort_roles_dict(session.original_roles_amount)
@@ -574,7 +580,8 @@ class Game(commands.Cog, GameEngine, name="Game"):
             role_dict[role][0] += 1
             role_dict[role][1] += 1
 
-        msg.append("Total roles: " + ', '.join(f"{self.lgr(name, 'pl')}: {count}" for name, count in orig_roles.items()))
+        msg_roles = []
+        msg_roles.append(f"**{self.lg('stats_total_roles')}** " + ', '.join(f"**{count}** {self.lgr(name, self.pl(count))}" for name, count in orig_roles.items()))
 
         if session.reveal:
             for role in list(role_dict):
@@ -596,18 +603,19 @@ class Game(commands.Cog, GameEngine, name="Game"):
                 if template in orig_roles:
                     del orig_roles[template]
 
-            msg.append("Current roles: " + ', '.join(f"{self.lgr(role, 'pl')}: {count[0] if count[0] == count[1] else f'{count[0]}-{count[1]}'}" for role, count in role_dict.items()))
+            msg_roles.append(f"**{self.lg('stats_current_roles')}** " + ', '.join(f"**{count[0] if count[0] == count[1] else f'{count[0]}**-**{count[1]}'}** {self.lgr(role, self.pl(count[0] if count[0] == count[1] else 0))}" for role, count in role_dict.items()))
 
-        msg.append('```')
+        msg_dict[self.lg('stats_roles')] = '\n'.join(msg_roles)
+        msg_dict = {k: v for k, v in msg_dict.items() if v}
 
-        return '\n'.join(msg)
+        return msg_header, msg_dict
 
 
     @commands.command()
     async def start(self, ctx):
         """Votes to start the game, if the minimum player count is met."""
         session = self.find_session_player(ctx.author.id)
-        if not session: return await ctx.reply(self.lg('no_session_user'))
+        if not session: return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
 
         if ctx.channel.id != session.id:
             return await use_in_channel(session, ctx)
@@ -672,7 +680,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
     async def myrole(self, ctx):
         """Tells you your role in DMs."""
         session = self.find_session_player(ctx.author.id)
-        if not session: return await ctx.reply(self.lg('no_session_user'))
+        if not session: return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
 
         if ctx.channel.id != session.id and ctx.guild:
             return
@@ -682,11 +690,12 @@ class Game(commands.Cog, GameEngine, name="Game"):
 
         player = self.find_player(session, ctx.author.id)
 
-        role_msg, info_msg = self.send_role_info(session, player)
+        role_msg, info_msg, role = self.send_role_info(session, player)
         try:
-            await player.send(role_msg)
-            if info_msg:
-                await player.send(info_msg)
+            msg = {self.lg('role_msg_header', a=self.a(role), role=role): role_msg}
+            if info_msg: msg[self.lg('info_msg_header')] = info_msg
+            embed = await self.wwembed(ctx=ctx, fields=msg, title=self.lg('your_role_header'))
+            await player.send(embed=embed)
             await ctx.message.add_reaction('👍')
         except discord.Forbidden:
             await session.send(self.lg('role_dm_off', mention=player.mention))
@@ -787,7 +796,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
     async def time(self, ctx):
         """Checks in-game time."""
         session = self.find_session_player(ctx.author.id)
-        if not session: return await ctx.reply(self.lg('no_session_user'))
+        if not session: return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
 
         if session.channel.id != ctx.channel.id and ctx.guild: return
 
@@ -1407,11 +1416,12 @@ class Game(commands.Cog, GameEngine, name="Game"):
 
         await self.log(2, 'force role', self.slog(session), self.ulog(ctx.author), target=player.id, role=role)
 
-        role_msg, info_msg = self.send_role_info(session, newrole)
+        role_msg, info_msg, role = self.send_role_info(session, newrole)
         try:
-            await newrole.send(role_msg)
-            if info_msg:
-                await newrole.send(info_msg)
+            msg = {self.lg('role_msg_header', a=self.a(role), role=role): role_msg}
+            if info_msg: msg[self.lg('info_msg_header')] = info_msg
+            embed = await self.wwembed(ctx=ctx, user=newrole.user, fields=msg, title=self.lg('your_role_header'))
+            await newrole.send(embed=embed)
         except discord.Forbidden:
             await session.send(self.lg('role_dm_off', mention=newrole.mention))
 
@@ -1542,8 +1552,8 @@ class Game(commands.Cog, GameEngine, name="Game"):
         await ctx.reply(f"Cleared {user.mention}'s ({user.id}) stasis.")
         await self.log(2, 'stasis clear', self.ulog(ctx.author), target=self.ulog(user))
 
-    @force.command()
-    async def sync(self, ctx, session: int = None):
+    @force.command(name='sync')
+    async def fsync(self, ctx, session: int = None):
         """Syncs session channel permissions."""
         if session is not None: session = self.find_session_channel(session)
         else: session = self.find_session_channel(ctx.channel.id)
@@ -1558,7 +1568,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
                     await self.player_remove_perms(session.channel, player.user, self.bot.PLAYERS_ROLE, bulk=True)
                     perms[player.user] = None
 
-            await session.channel.edit(overwrites=self.update_overwrites(session.channel.overwrites, overwrites))
+            await session.channel.edit(overwrites=self.update_overwrites(session.channel.overwrites, perms))
 
         else:
             if session is not None: channel = session.channel
@@ -1567,6 +1577,11 @@ class Game(commands.Cog, GameEngine, name="Game"):
             users = [k for k, v in channel.overwrites.items() if isinstance(k, discord.Member) and v.read_messages != None]
             users += [x for x in self.bot.PLAYERS_ROLE.members if x.id not in [t for s in self.bot.sessions.values() for t in s.player_ids]]
             await self.unlock_lobby(None, users, self.bot.PLAYERS_ROLE, channel=channel)
+
+            perms = dict()
+            for player in session.preplayers:
+                perms[player.user] = await self.player_give_perms(session.channel, player.user, self.bot.PLAYERS_ROLE, bulk=True)
+            await session.channel.edit(overwrites=self.update_overwrites(session.channel.overwrites, perms))
 
         await ctx.reply("Synced lobby.")
 

@@ -5,7 +5,11 @@
         ],
 
         "now_daytime": [
-            "It is now **daytime**. Discussion time is {time}, after which you may use `{prefix}vote <player>` to vote to lynch a player."
+            "It is now **daytime**."
+        ],
+
+        "now_daytime_2": [
+            "Discussion time is {time}, after which you may use `{prefix}vote <player>` to vote to lynch a player."
         ],
 
         "now_nighttime": [
@@ -26,6 +30,14 @@
 
         "day_summary": [
             "Day lasted **{time}**. The {villagers}, exhausted from the day's events, go to bed."
+        ],
+
+        "sunset": [
+            "The sun sets on an eventful day..."
+        ],
+
+        "sunrise": [
+            "The sun rises upon the dense forest..."
         ],
 
 
@@ -138,12 +150,32 @@
 
 
         "end_role_reveal": [
-            "The **<{role}|{pl}>** <was|{pl}> {listing}."
+            "- The **<{role}|{pl}>** <was|{pl}> {listing}."
         ],
 
 
         "end_game": [
             "{mentions} Game over! Night lasted **{night_length}**. Day lasted **{day_length}**. Game lasted **{game_length}**.\n{reason}"
+        ],
+
+        "end_game_1": [
+            "Game over!"
+        ],
+
+        "end_game_2": [
+            "Night lasted **{night_length}**. Day lasted **{day_length}**. Game lasted **{game_length}**."
+        ],
+
+        "summary": [
+            "Summary"
+        ],
+
+        "end_game_reveal": [
+            "Roles"
+        ],
+
+        "results": [
+            "Results"
         ],
 
         "end_game_no_winners": [
@@ -156,9 +188,16 @@
 
 
 
+        "welcome_1": [
+            "Welcome to **{game_name}**s!"
+        ],
 
-        "welcome": [
-            "{listing}, Welcome to **{game_name}**, the popular detective/social party game (a theme of Mafia). Using the **{gamemode}** gamemode with **{count}** players.\nAll players check for DMs from me for instructions. If you did not receive a DM, please try `{prefix}myrole` to resend your role."
+        "welcome_2": [
+            "Using the '{gamemode}' gamemode with {count} players."
+        ],
+
+        "welcome_3": [
+            "All players check for DMs from me for instructions. If you did not receive a DM, please try `{prefix}myrole` to resend your role.\nTo see game info during the game, use `{prefix}stats`. To learn about the game, use `{prefix}info`."
         ],
 
 
@@ -185,6 +224,9 @@
         ],
 
 
+        "no_session": [
+            "No session!"
+        ],
 
         "no_session_channel": [
             "There doesn't appear to be a game running in this channel!"
@@ -440,6 +482,7 @@
             "Please select a player count within the boundaries of the gamemode's minimum and maximum player count."
         ],
 
+
         "stats_info": [
             "It is currently **{daynight}time**. Using the **{gamemode}** gamemode."
         ],
@@ -448,9 +491,26 @@
             "**{count}** players playing: **{alive}** alive, **{dead}** dead."
         ],
 
-        "stats_players": [
-            "```basic\n --- Living players: --- \n{alive}\n --- Dead players: --- \n{dead}\n"
+        "stats_living": [
+            "Living players:"
         ],
+
+        "stats_dead": [
+            "Dead players:"
+        ],
+
+        "stats_roles": [
+            "Roles:"
+        ],
+
+        "stats_total_roles": [
+            "Total roles:"
+        ],
+
+        "stats_current_roles": [
+            "Current roles:"
+        ],
+
 
         "stasis_count": [
             "You are currently in stasis for **{count}** game{s}! This means that you cannot join a game until {count} game{s} <has|{pl}> passed."
@@ -553,6 +613,20 @@
 
         "see_result": [
             "You have a vision... in your vision you see that **{name}** {msg}!"
+        ],
+
+
+
+        "your_role_header": [
+            "Your role:"
+        ],
+
+        "role_msg_header": [
+            "You are {a} {role}"
+        ],
+
+        "info_msg_header": [
+            "Living players"
         ]
     },
 

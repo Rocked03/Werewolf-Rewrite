@@ -286,12 +286,18 @@ class GameEngine:
                     lock=self.bot.stasis_lock, name=self.bot.stasis_name, conn=conn)
 
 
-        await session.send(self.lg('welcome',
-            listing=' '.join([x.mention for x in self.sort_players(session.preplayers, False)]),
-            gamemode=session.gamemode['name'],
-            count=session.player_count,
-            prefix=BOT_PREFIX
-        ))
+        # await session.send(self.lg('welcome',
+        #     listing=' '.join([x.mention for x in self.sort_players(session.preplayers, False)]),
+        #     gamemode=session.gamemode['name'],
+        #     count=session.player_count,
+        #     prefix=BOT_PREFIX
+        # ))
+
+        await session.send(
+            ' '.join([x.mention for x in self.sort_players(session.preplayers, False)]),
+            embed=await self.wwembed(
+                title=self.lg('welcome_1'),
+                fields={self.lg('welcome_2', gamemode=session.gamemode['name'], count=session.player_count): self.lg('welcome_3')}))
 
         for i in range(RETRY_RUN_GAME):
             try:
@@ -407,12 +413,18 @@ class GameEngine:
             for player in session.players:
                 # totems
 
-                role_msg, info_msg = self.send_role_info(session, player)
+                role_msg, info_msg, role = self.send_role_info(session, player)
                 if role_msg:
                     try:
-                        if session.night_count == 0: await player.send(role_msg)
-                        if info_msg:
-                            await player.send(info_msg)
+                        # if session.night_count == 0: await player.send(role_msg)
+                        # if info_msg:
+                        #     await player.send(info_msg)
+                        msg = {}
+                        if session.night_count == 0: msg[self.lg('role_msg_header', a=self.a(role), role=role)] = role_msg
+                        if info_msg: msg[self.lg('info_msg_header')] = info_msg
+                        if msg: 
+                            embed = await self.wwembed(fields=msg, title=self.lg('your_role_header'))
+                            await player.send(embed=embed)
                     except discord.Forbidden:
                         await session.send(self.lg('role_dm_off', mention=player.mention))
 
@@ -426,7 +438,7 @@ class GameEngine:
             session = await self.session_update('push', session)
 
             if self.in_session(session):
-                await session.send(self.lg('day_summary', time=self.timedelta_to_str(session.latest_day_elapsed)))
+                await session.send(embed=await wwembed(user=self.bot.user, title=self.lg('sunset'), description=self.lg('day_summary', time=self.timedelta_to_str(session.latest_day_elapsed))))
 
                 # entranced stuff
 
@@ -448,7 +460,7 @@ class GameEngine:
 
     async def night(self, session):
         session.night_start = datetime.utcnow()
-        await session.send(self.lg('now_nighttime'))
+        await session.send(embed=await self.wwembed(title=self.lg('now_nighttime'), footer=False))
 
         warn = False
         # NIGHT LOOP
@@ -550,11 +562,16 @@ class GameEngine:
             ))
 
         if session.in_session and not self.win_condition(session):
-            killed_msg_final = '\n'.join(killed_msg)
-            await session.send(
-                self.lg('night_summary', time=self.timedelta_to_str(session.latest_night_elapsed))
-                + f"\n\n{killed_msg_final}"
-            )
+            # killed_msg_final = '\n'.join(killed_msg)
+            # await session.send(
+            #     self.lg('night_summary', time=self.timedelta_to_str(session.latest_night_elapsed))
+            #     + f"\n\n{killed_msg_final}"
+            # )
+            await session.send(embed=await self.wwembed(
+                title=self.lg('sunrise'),
+                description=self.lg('night_summary', time=self.timedelta_to_str(session.latest_night_elapsed)),
+                fields={self.lg('summary'): '\n'.join(killed_msg)}
+            ))
 
             for player in session.players: # more totem stuff - 'angry'
                 pass
@@ -576,7 +593,7 @@ class GameEngine:
             for player in session.players: # more totem stuff
                 pass
 
-            await session.send(self.lg('now_daytime', time=self.timestr_to_text(DISCUSSION_LENGTH)))
+            await session.send(embed=await self.wwembed(title=self.lg('now_daytime'), description=self.lg('now_daytime_2', time=self.timestr_to_text(DISCUSSION_LENGTH)), footer=False))
 
         for player in session.players: # blindness, illness, doomsayer
             pass
@@ -615,7 +632,7 @@ class GameEngine:
                     lynched_msg.append(self.lg('meekly_vote', voter=self.get_name(player)))
                 lynched_msg.append(self.lg('abstain'))
 
-                await session.send('\n'.join(lynched_msg))
+                await session.send(embed=await self.wwembed(description='\n'.join(lynched_msg), footer=False))
 
             else:
                 lynched_player = self.find_player(session, lynched_player)
@@ -649,7 +666,7 @@ class GameEngine:
                                 lynched=lynched_player.mention
                             ))
 
-                        await session.send('\n'.join(lynched_msg))
+                        await session.send(embed=await self.wwembed(description='\n'.join(lynched_msg), footer=False))
 
                         # if lynched_player.role == 'jester':
                         #     lynched_player.lynched = True
@@ -709,33 +726,38 @@ class GameEngine:
             if session.night_start:
                 session.night_elapsed = datetime.utcnow() - session.night_start
 
-        msg = [self.lg('end_game',
-            mentions = ' '.join([x.mention for x in self.sort_players(session.players)]),
-            night_length = self.timedelta_to_str(session.night_elapsed),
-            day_length = self.timedelta_to_str(session.day_elapsed),
-            game_length = self.timedelta_to_str(session.day_elapsed + session.night_elapsed),
-            reason=reason
-        )]
-
-        msg.append(end_stats)
+        embed = await self.wwembed(
+            title=self.lg('end_game_1'),
+            description=self.lg('end_game_2',
+                night_length = self.timedelta_to_str(session.night_elapsed),
+                day_length = self.timedelta_to_str(session.day_elapsed),
+                game_length = self.timedelta_to_str(session.day_elapsed + session.night_elapsed)),
+            fields={
+                self.lg('summary'): reason,
+                self.lg('end_game_reveal'): end_stats
+            }
+        )
 
         if winners:
             # crazed shaman stuff
 
             winners = self.sort_players(list(set(winners)))
             if len(winners) == 0:
-                msg.append(self.lg('end_game_no_winners'))
+                embed.add_field(name=self.lg('end_game_result'), value=self.lg('end_game_no_winners'), inline=False)
             else:
-                msg.append(self.lg('end_game_winners',
-                    s=self.s(len(winners)),
-                    pl=self.pl(len(winners)),
-                    listing=self.listing([f"**{self.get_name(x)}**" for x in winners])
-                ))
+                embed.add_field(
+                    name=self.lg('results'), 
+                    value=self.lg('end_game_winners',
+                        s=self.s(len(winners)),
+                        pl=self.pl(len(winners)),
+                        listing=self.listing([x.mention for x in winners])
+                    ), 
+                    inline=False)
 
         else:
-            msg.append(self.lg('end_game_no_winners'))
+            embed.add_field(name=self.lg('results'), value=self.lg('end_game_no_winners'), inline=False)
 
-        await session.send('\n\n'.join(msg))
+        await session.send(' '.join([x.mention for x in self.sort_players(session.players)]), embed=embed)
         await self.log(1, 'game win', self.slog(session), winners=' '.join(str(x.id) for x in winners))
 
         sessionusers = [x.user for x in session.players if x.real]
@@ -771,7 +793,7 @@ class GameEngine:
             win_lore = self.lg('no_win')
 
         # Wolves win
-        elif teams['village'] + teams['neutral'] <= teams['wolf']:
+        elif teams['village'] + teams['neutral'] - (1 if session.night else 0) <= teams['wolf']:
             win_team = 'wolf'
             win_lore = self.lg('wolf_win')
 
@@ -826,7 +848,7 @@ class GameEngine:
 
         # lover stuff
 
-        return ' '.join(role_msg)
+        return '\n'.join(role_msg)
 
 
 
@@ -1064,7 +1086,8 @@ class GameEngine:
 
             if player.commands:
                 lps = '\n'.join(living_players_string)
-                msg.append(f"Living players:\n```basic\n{lps}```")
+                # msg.append(f"Living players:\n```basic\n{lps}```")
+                msg.append(f"```basic\n{lps}```")
 
             # mystic
             # wolf mystic
@@ -1075,12 +1098,12 @@ class GameEngine:
             # matchmaker
             # minion
 
-            return role_msg, '\n'.join(msg)
+            return role_msg, '\n'.join(msg), self.lgr(rolename)
 
         elif False:
-            return '', ''  # vengeful ghost
+            return '', '', ''  # vengeful ghost
         else:
-            return '', ''
+            return '', '', ''
 
     def get_votes(self, session):
         totem_dict = {}
@@ -1182,7 +1205,7 @@ class GameEngine:
             else:
                 if player.player.real: real.append(player)
                 else: fake.append(player)
-        return sorted(real, key=self.get_name) + sorted(fake, key=lambda x: x.id)
+        return sorted(real, key=self.get_name) + sorted(fake, key=lambda x: x.name)
 
     def get_name(self, player):
         escape = lambda x: discord.utils.escape_mentions(discord.utils.escape_markdown(str(x)))
@@ -1203,3 +1226,37 @@ class GameEngine:
         x = self.split_time(x)
         return ', '.join([f"**{t}** {n}{self.s(t)}" for t, n in zip(x, ['hour', 'minute', 'second']) if t])
 
+
+    async def wwembed(self, c=None, *, ctx=None, user=None, msg=None, fields={}, inline=False, footer=True, **kwargs):
+        embed = discord.Embed(**kwargs, colour=EMBED_COLOUR)
+        if footer: embed.timestamp = datetime.utcnow()
+
+        if ctx is not None:
+            if user is None:
+                user = ctx.author
+            if msg is None:
+                msg = ctx.message.content
+        if user is None:
+            user = self.bot.user
+
+        footertxt = []
+        if msg is not None:
+            footertxt.append(str(msg))
+        if user is not None:
+            if user.id != self.bot.user.id:
+                footertxt.append(str(user))
+            else:
+                footertxt.append(user.name)
+
+
+        if footertxt and footer: 
+            if user is not None:
+                embed.set_footer(text=' | '.join(footertxt), icon_url=user.avatar_url)
+            else:
+                embed.set_footer(text=' | '.join(footertxt))
+
+        for k, v in fields.items(): embed.add_field(name=k, value=v, inline=inline)
+
+        if c is not None: await c.reply(embed=embed)
+
+        return embed
