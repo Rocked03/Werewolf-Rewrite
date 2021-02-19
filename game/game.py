@@ -18,7 +18,7 @@ from settings import *
 
 
 # ---- top priority
-# 
+# self sync
 # ---- medium priority
 # more roles
 # nicer message formats (eg embeds and stuff)
@@ -212,7 +212,8 @@ class Game(commands.Cog, GameEngine, name="Game"):
 
         if gamemode:
             session = await self.session_update('pull', session)
-            self.vote_gamemode(session, ctx.author.id, gamemode)
+            msg = await self.vote_gamemode(session, ctx.author.id, gamemode)
+            await ctx.reply(msg)
 
 
     async def player_join(self, session, user, real=True):
@@ -288,7 +289,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
     async def leave(self, ctx, force=None):
         """Leaves the current game. If you need to leave, please do it before the game starts."""
         session = self.find_session_player(ctx.author.id)
-        if not session: return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
+        if not session: return await ctx.reply(self.lg('no_session_user'))
 
         if session.in_session:
             player = self.get_player(session, ctx.author.id)
@@ -354,7 +355,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
     async def preplayer_leave(self, session, player, reason='leave'):
         session = await self.player_death(session, player, 'leave', 'bot')
         msgtype = 'leave_lobby' if reason == 'leave' else 'guild_leave_lobby'
-        msg = self.lg('leave_lobby', name=player.nickname, count=session.player_count, s=self.s(session.player_count))
+        msg = self.lg('leave_lobby', name=player.nickname, count=session.player_count, s=self.s(session.player_count), pl=self.pl(session.player_count))
         
         if reason == 'fleave': await self.log(2, 'fleave outofgame', self.slog(session), self.ulog(player.user))
 
@@ -382,7 +383,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
         """Casts a vote. Gamemode or Reveal if pre-game, Player if in-game."""
         session = self.find_session_player(ctx.author.id)
         if not session:
-            return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
+            return await ctx.reply(self.lg('no_session_user'))
 
         if session.in_session:
             cmd = self.bot.get_command("lynch")
@@ -448,15 +449,14 @@ class Game(commands.Cog, GameEngine, name="Game"):
         session = self.find_session_player(ctx.author.id)
         if not session:
             session = self.find_session_channel(ctx.channel.id)
-            if not session:
-                return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
+            if not session: return await ctx.reply(self.lg('no_session_user'))
 
         if not session.in_session:
             vote_dict = {'start': [], 'reveal': [], 'no reveal': []}
 
             for player in session.preplayers:
                 if player.vote.start: vote_dict['start'].append(player)
-                
+
                 if player.vote.gamemode is not None:
                     gm = player.vote.gamemode
                     if gm in vote_dict.keys():
@@ -470,32 +470,59 @@ class Game(commands.Cog, GameEngine, name="Game"):
             pc = session.player_count
             gmmaj = session.player_count // 2 + 1  # gamemode majority required
             stmaj = max(2, min(session.player_count // 4 + 1, 4))
-            msg = [self.lg('start_vote_count',
-                player_count = pc,
-                s_pc = self.s(pc),
-                gamemode_count = gmmaj,
-                s_gm = self.s(gmmaj),
-                start_count = stmaj
-            )]
+            # msg = [self.lg('start_vote_count',
+            #     player_count = pc,
+            #     s_pc = self.s(pc),
+            #     gamemode_count = gmmaj,
+            #     s_gm = self.s(gmmaj),
+            #     reveal_count = gmmaj,
+            #     s_rv = self.s(gmmaj),
+            #     start_count = stmaj
+            # )]
+            embed = await self.wwembed(
+                ctx=ctx,
+                title=self.lg('votes'), 
+                description=self.lg('start_vote_count',
+                    player_count = pc,
+                    s_pc = self.s(pc),
+                    gamemode_count = gmmaj,
+                    s_gm = self.s(gmmaj),
+                    reveal_count = gmmaj,
+                    s_rv = self.s(gmmaj),
+                    start_count = stmaj
+            ))
 
-            pllist = lambda x: ', '.join(p.user.display_name for p in x)
+            # pllist = lambda x: ', '.join(p.user.display_name for p in x)
+            pllist = lambda x: ', '.join(p.mention for p in x)
 
+            msg_gm = []
             for gamemode, plist in vote_dict.items():
                 if gamemode in ['start', 'reveal', 'no reveal']: continue
-                msg.append(f"{gamemode} ({len(plist)} vote{self.s(len(plist))}: {pllist(plist)})")
+                msg_gm.append(self.lg('votes_format', topic=gamemode.capitalize(), n=len(plist), s=self.s(len(plist)), listing=pllist(plist)))
 
+            if not msg_gm: msg_gm.append(self.lg('vote_gamemodes'))
+
+            msg_rv_st = []
             if vote_dict['reveal']:
                 x = vote_dict['reveal']
-                msg.append(f"{len(x)} vote{self.s(len(x))} to reveal roles: {pllist(x)}")
+                msg_rv_st.append(self.lg('votes_format', topic=self.lg('reveal_roles'), n=len(x), s=self.s(len(x)), listing=pllist(x)))
 
             if vote_dict['no reveal']:
                 x = vote_dict['no reveal']
-                msg.append(f"{len(x)} vote{self.s(len(x))} not to reveal roles: {pllist(x)}")
+                msg_rv_st.append(self.lg('votes_format', topic=self.lg('no_reveal_roles'), n=len(x), s=self.s(len(x)), listing=pllist(x)))
+
+            if not msg_rv_st: msg_rv_st.append(self.lg('vote_reveal'))
+            msg_rv_st.append('')
 
             x = vote_dict['start']
-            msg.append(f'{len(x)} vote{self.s(len(x))} to start: {pllist(x)}')
+            if x: msg_rv_st.append(self.lg('start_votes_format', n=len(x), s=self.s(len(x)), listing=pllist(x)))
+            else: msg_rv_st.append(self.lg('vote_start'))
 
-            return await ctx.reply('\n'.join(msg))
+            embed.add_field(name=self.lg('gamemode_votes_header'), value='\n'.join(msg_gm))
+            embed.add_field(name=self.lg('reveal_start_votes_header'), value='\n'.join(msg_rv_st))
+
+
+            return await ctx.reply(embed=embed)
 
         elif session.in_session and session.day:
             vote_dict = {'abstain': []}
@@ -615,7 +642,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
     async def start(self, ctx):
         """Votes to start the game, if the minimum player count is met."""
         session = self.find_session_player(ctx.author.id)
-        if not session: return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
+        if not session: return await ctx.reply(self.lg('no_session_user'))
 
         if ctx.channel.id != session.id:
             return await use_in_channel(session, ctx)
@@ -680,7 +707,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
     async def myrole(self, ctx):
         """Tells you your role in DMs."""
         session = self.find_session_player(ctx.author.id)
-        if not session: return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
+        if not session: return await ctx.reply(self.lg('no_session_user'))
 
         if ctx.channel.id != session.id and ctx.guild:
             return
@@ -796,7 +823,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
     async def time(self, ctx):
         """Checks in-game time."""
         session = self.find_session_player(ctx.author.id)
-        if not session: return await wwembed(c=ctx, ctx=ctx, title=self.lg('no_session_user'))
+        if not session: return await ctx.reply(self.lg('no_session_user'))
 
         if session.channel.id != ctx.channel.id and ctx.guild: return
 
@@ -1185,8 +1212,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
             success, msg = await self.player_join(session, t)
             await ctx.reply(f"**[{t.mention} ({t.id})]**: {msg}")
 
-            if t.real:
-                await self.player_give_perms(session.channel, t.user, self.bot.PLAYERS_ROLE)
+            await self.player_give_perms(session.channel, t, self.bot.PLAYERS_ROLE)
 
         await self.log(2, 'force join', self.slog(session), self.ulog(ctx.author), targets=' '.join([str(t.id) for t in target]))
 
@@ -1578,10 +1604,11 @@ class Game(commands.Cog, GameEngine, name="Game"):
             users += [x for x in self.bot.PLAYERS_ROLE.members if x.id not in [t for s in self.bot.sessions.values() for t in s.player_ids]]
             await self.unlock_lobby(None, users, self.bot.PLAYERS_ROLE, channel=channel)
 
-            perms = dict()
-            for player in session.preplayers:
-                perms[player.user] = await self.player_give_perms(session.channel, player.user, self.bot.PLAYERS_ROLE, bulk=True)
-            await session.channel.edit(overwrites=self.update_overwrites(session.channel.overwrites, perms))
+            if session is not None:
+                perms = dict()
+                for player in session.preplayers:
+                    perms[player.user] = await self.player_give_perms(session.channel, player.user, self.bot.PLAYERS_ROLE, bulk=True)
+                await session.channel.edit(overwrites=self.update_overwrites(session.channel.overwrites, perms))
 
         await ctx.reply("Synced lobby.")
 

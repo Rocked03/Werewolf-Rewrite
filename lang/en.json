@@ -189,7 +189,7 @@
 
 
         "welcome_1": [
-            "Welcome to **{game_name}**s!"
+            "Welcome to **{game_name}**!"
         ],
 
         "welcome_2": [
@@ -321,8 +321,8 @@
         ],
 
         "leave_lobby": [
-            "**{name}** left the game. There are now **{count}** player{s} in the lobby.",
-            "**{name}** walked out of the lobby. There are now **{count}** player{s} in the lobby.",
+            "**{name}** left the game. There <is|{pl}> now **{count}** player{s} in the lobby.",
+            "**{name}** walked out of the lobby. There <is|{pl}> now **{count}** player{s} in the lobby.",
             "**{name}** was shot twice by a hunter, once in the head and once in the heart. Remaining players: **{count}**",
             "**{name}** poked a bear in the eye with a stick and has paid the price. Remaining players: **{count}**",
             "**{name}** was hit by a humongous yellow bullet from a giant yellow tank. The **{count}** remaining player{s} cower in fear."
@@ -413,8 +413,48 @@
             "Not enough votes to start, resetting start votes."
         ],
 
+        "votes": [
+            "Votes"
+        ],
+
+        "votes_format": [
+            "**{topic}** - {n} vote{s}: {listing}"
+        ],
+
+        "start_votes_format": [
+            "**{n} vote{s} to start:** {listing}"
+        ],
+
+        "vote_gamemodes": [
+            "No votes yet for gamemodes! To vote, use `{prefix}vote gamemodename`."
+        ],
+
+        "vote_reveal": [
+            "No votes yet for role reveals! To vote, use either `{prefix}vote reveal` or `{prefix}vote noreveal`."
+        ],
+
+        "vote_start": [
+            "No votes yet to start! To vote to start the game, use `{prefix}start`."
+        ],
+
+        "reveal_roles": [
+            "Roles revealed"
+        ],
+
+        "no_reveal_roles": [
+            "No roles revealed"
+        ],
+
+        "gamemode_votes_header": [
+            "Gamemodes"
+        ],
+
+        "reveal_start_votes_header": [
+            "Votes"
+        ],
+
         "start_vote_count": [
-            "**{player_count}** player{s_pc} in the lobby, **{gamemode_count}** vote{s_gm} required to choose a gamemode, majority votes required to choose whether to reveal roles, **{start_count}** votes needed to start."
+            "**{player_count}** player{s_pc} in the lobby.\n **{gamemode_count}** vote{s_gm} required to choose a gamemode.\n**{reveal_count}** vote{s_rv} required to choose whether to reveal roles.\n**{start_count}** votes needed to start."
         ],
 
         "lynch_vote_count": [

@@ -207,8 +207,11 @@ class GameEngine:
         if role is not None:
             member = channel.guild.get_member(user.id)
             if member is not None:
-                if role in member.roles:
+                try:
                     await member.remove_roles(role)
+                except Exception as e:
+                    print(e)
+            else: print('huh?')
 
         perms = channel.overwrites
         if user not in perms: return None
