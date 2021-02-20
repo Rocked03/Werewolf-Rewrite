@@ -190,9 +190,9 @@ class Game(commands.Cog, GameEngine, name="Game"):
         session2 = self.find_session_player(ctx.author.id)
         if session2 is not None: 
             if session2.id == session.id:
-                return await self.wwembed(c=ctx, ctx=ctx, title=self.lg('already_in'))
+                return await ctx.reply(self.lg('already_in'))
             else:
-                return await self.wwembed(c=ctx, ctx=ctx, title=self.lg('already_in_elsewhere', channel=session.mention))
+                return await ctx.reply(self.lg('already_in_elsewhere', channel=session.mention))
 
         async with self.stasis.connection(self.bot.stasis_name) as conn:
             stasis = await self.stasis.get(ctx.author.id,
@@ -973,7 +973,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
 
         # evil village
 
-        if session.day_start == timedelta(0):
+        if session.day_count == 0:
             return await ctx.reply(self.lg('abstain_first_day'))
 
         # injured
@@ -1680,7 +1680,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
                 return None
 
             gamemode_roles = {}
-            for role in self.roles_list:
+            for role in self.roles() + self.templates:
                 if role in gmobj['roles'].keys() and gmobj['roles'][role][playercount - MIN_PLAYERS] > 0:
                     gamemode_roles[role] = gmobj['roles'][role][playercount - MIN_PLAYERS]
             return gamemode_roles

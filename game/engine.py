@@ -441,7 +441,7 @@ class GameEngine:
             session = await self.session_update('push', session)
 
             if self.in_session(session):
-                await session.send(embed=await wwembed(user=self.bot.user, title=self.lg('sunset'), description=self.lg('day_summary', time=self.timedelta_to_str(session.latest_day_elapsed))))
+                await session.send(embed=await self.wwembed(user=self.bot.user, title=self.lg('sunset'), description=self.lg('day_summary', time=self.timedelta_to_str(session.latest_day_elapsed))))
 
                 # entranced stuff
 
@@ -466,10 +466,11 @@ class GameEngine:
         await session.send(embed=await self.wwembed(title=self.lg('now_nighttime'), footer=False))
 
         warn = False
+        end = None
         # NIGHT LOOP
         while self.in_session(session) and session.night:
             session = await self.session_update('pull', session)
-            session, warn = await self.night_loop(session, warn)
+            session, warn, end = await self.night_loop(session, warn, end)
             session = await self.session_update('push', session, ['_daynight', 'day_start', 'num_wolf_kills'])
             await asyncio.sleep(0.1)
 
@@ -481,7 +482,7 @@ class GameEngine:
 
         return session
 
-    async def night_loop(self, session, warn):
+    async def night_loop(self, session, warn, end):
         wolf_kill_dict = {}
         num_wolves = 0
 
@@ -507,13 +508,18 @@ class GameEngine:
             warn = True
             await session.send(self.lg('almost_day'))
 
+        if not end_night:
+            end = None
+
         if end_night:
-            session.set_day()
-            session.day_start = datetime.utcnow()
+            if end is None: end = datetime.utcnow() + timedelta(seconds=random.choice(range(NIGHT_BUFFER[0], NIGHT_BUFFER[1] + 1)))
+            if datetime.utcnow() >= end:
+                session.set_day()
+                session.day_start = datetime.utcnow()
 
         session.num_wolf_kills = num_kills
 
-        return session, warn
+        return session, warn, end
 
     async def sunrise(self, session):
         session.night_count = 1

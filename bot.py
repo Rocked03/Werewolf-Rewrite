@@ -11,7 +11,7 @@ from discord.ext import commands
 from config import *
 
 intents = discord.Intents.all()
-bot = commands.Bot(command_prefix=BOT_PREFIX, description='Werewolf', intents=intents)
+bot = commands.Bot(command_prefix=BOT_PREFIX, description='Werewolf', intents=intents, case_insensitive=True)
 
 
 initial_extensions = [
