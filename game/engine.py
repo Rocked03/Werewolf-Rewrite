@@ -1187,6 +1187,7 @@ class GameEngine:
 
     pl = lambda self, n: 'sg' if n == 1 else 'pl'
     s = lambda self, n: '' if n == 1 else 's'
+    _s = lambda self, n: 's' if n == 1 else ''
     a = lambda self, x: 'an' if any(x.lower().startswith(y) for y in ['a', 'e', 'i', 'o', 'u']) else 'a'
 
     listing = lambda self, x, c=False: ' and '.join([y for y in [', '.join(x[:-1]) + (',' if len(x[:-1]) > 1 else '')] + [x[-1]] if y]) + (',' if c else '')

@@ -325,7 +325,7 @@
             "**{name}** walked out of the lobby. There <is|{pl}> now **{count}** player{s} in the lobby.",
             "**{name}** was shot twice by a hunter, once in the head and once in the heart. Remaining players: **{count}**",
             "**{name}** poked a bear in the eye with a stick and has paid the price. Remaining players: **{count}**",
-            "**{name}** was hit by a humongous yellow bullet from a giant yellow tank. The **{count}** remaining player{s} cower in fear."
+            "**{name}** was hit by a humongous yellow bullet from a giant yellow tank. The **{count}** remaining player{s} cower{_s} in fear."
         ],
 
         "guild_leave_lobby": [
@@ -667,6 +667,10 @@
 
         "info_msg_header": [
             "Living players"
+        ],
+
+        "synced": [
+            "Synced your permissions!"
         ]
     },
 

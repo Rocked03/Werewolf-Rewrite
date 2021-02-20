@@ -18,9 +18,9 @@ from settings import *
 
 
 # ---- top priority
-# self sync
+# 
 # ---- medium priority
-# more roles
+# more roles - Shaman, Harlot, Traitor
 # nicer message formats (eg embeds and stuff)
 # fix log message errors on boot
 # ---- low priority
@@ -355,7 +355,7 @@ class Game(commands.Cog, GameEngine, name="Game"):
     async def preplayer_leave(self, session, player, reason='leave'):
         session = await self.player_death(session, player, 'leave', 'bot')
         msgtype = 'leave_lobby' if reason == 'leave' else 'guild_leave_lobby'
-        msg = self.lg('leave_lobby', name=player.nickname, count=session.player_count, s=self.s(session.player_count), pl=self.pl(session.player_count))
+        msg = self.lg('leave_lobby', name=player.nickname, count=session.player_count, s=self.s(session.player_count), pl=self.pl(session.player_count), _s=self._s(session.player_count))
         
         if reason == 'fleave': await self.log(2, 'fleave outofgame', self.slog(session), self.ulog(player.user))
 
@@ -996,11 +996,11 @@ class Game(commands.Cog, GameEngine, name="Game"):
         if 'kill' not in player.commands: return
 
         if session.day:
-            return ctx.reply(self.lg('kill_day'))
+            return await ctx.reply(self.lg('kill_day'))
 
         if target is None:
             targets = [f"`{self.get_name(self.find_player(session, x))}`" for x in player.targets]
-            return ctx.reply('\n'.join([
+            return await ctx.reply('\n'.join([
                 self.lgr(player.role, 'desc'), 
                 self.lg('kill_target',
                     listing=': ' + ', '.join(targets) if targets else 'nobody'
@@ -1150,6 +1150,25 @@ class Game(commands.Cog, GameEngine, name="Game"):
 
 
     @commands.command()
+    async def sync(self, ctx):
+        """Syncs own's permissions."""
+        for _id, s in self.bot.sessions.items():
+            player = (self.find_player(s, ctx.author.id) or self.find_preplayer(s, ctx.author.id))
+            if player is not None and (not s.in_session or player.alive):
+                await self.player_give_perms(s.channel, player.user, self.bot.PLAYERS_ROLE)
+            else:
+                await self.player_remove_perms(s.channel, ctx.author)
+
+        session = self.find_session_player(ctx.author.id)
+        if session is not None: player = self.find_player(session, ctx.author.id)
+        if session is None or (session.in_session and not player.alive):
+            member = self.bot.WEREWOLF_SERVER.get_member(ctx.author.id)
+            if member is not None:
+                await member.remove_roles(self.bot.PLAYERS_ROLE)
+
+        await ctx.reply(self.lg('synced'))
+
+    @commands.command()
     async def info(self, ctx):
         """Info about the bot."""
         await ctx.reply(self.lg('info'))
@@ -1289,18 +1308,23 @@ class Game(commands.Cog, GameEngine, name="Game"):
             session = self.find_session_channel(ctx.channel.id)
         if not session: return await ctx.reply(self.lg('no_session_channel'))
 
-        if not session.in_session: return await ctx.reply("The game not yet in session!")
-
         
         await ctx.reply(f"Stopping...")
 
         await self.log(2, 'force stop', self.slog(session), self.ulog(ctx.author))
 
-        if force == '-force':
-            session.in_session = False
-            session = await self.session_update('push', session, ['in_session'])
+        if session.in_session:
+            if force == '-force':
+                session.in_session = False
+                session = await self.session_update('push', session, ['in_session'])
+            else:
+                await self.end_game(session=session, reason="The game has been stopped forcefully.", end_stats=self.end_game_stats(session))
+
         else:
-            await self.end_game(session=session, reason="The game has been stopped forcefully.", end_stats=self.end_game_stats(session))
+            self.session_setup(ctx.channel)
+            await (self.bot.get_command("force sync"))(ctx, ctx.channel.id)
+
+
 
     @force.command(name='timeset', aliases=['settime', 'ts'])
     async def ftimeset(self, ctx, session: typing.Union[int, str], *, time = None):
