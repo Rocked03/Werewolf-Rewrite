@@ -18,7 +18,7 @@ from settings import *
 
 
 # ---- top priority
-# 
+# ingame vote msg update
 # ---- medium priority
 # more roles - Shaman, Harlot, Traitor
 # nicer message formats (eg embeds and stuff)
@@ -572,11 +572,16 @@ class Game(commands.Cog, GameEngine, name="Game"):
             if session.player_count == 0:
                 return await ctx.reply(self.lg('no_session_channel_join'))
             else:
-                return await ctx.reply(self.lg('lobby_count',
-                    count=session.player_count,
-                    s=self.s(session.player_count),
-                    players='\n'.join(f"{p.name} ({p.id})" for p in session.preplayers)
-                ))
+                return await self.wwembed(
+                    c=ctx,
+                    ctx=ctx,
+                    fields={
+                        self.lg('lobby_count',
+                            count=session.player_count,
+                            s=self.s(session.player_count)):
+                        '\n'.join(f"{p.mention} ({p.id})" for p in session.preplayers)
+                    }
+                )
 
         else:
             header, fields = self.stats_msg(session)
@@ -717,11 +722,8 @@ class Game(commands.Cog, GameEngine, name="Game"):
 
         player = self.find_player(session, ctx.author.id)
 
-        role_msg, info_msg, role = self.send_role_info(session, player)
         try:
-            msg = {self.lg('role_msg_header', a=self.a(role), role=role): role_msg}
-            if info_msg: msg[self.lg('info_msg_header')] = info_msg
-            embed = await self.wwembed(ctx=ctx, fields=msg, title=self.lg('your_role_header'))
+            embed = await self.format_role_info(*self.send_role_info(session, player), ctx=ctx)
             await player.send(embed=embed)
             await ctx.message.add_reaction('👍')
         except discord.Forbidden:

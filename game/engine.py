@@ -419,14 +419,8 @@ class GameEngine:
                 role_msg, info_msg, role = self.send_role_info(session, player)
                 if role_msg:
                     try:
-                        # if session.night_count == 0: await player.send(role_msg)
-                        # if info_msg:
-                        #     await player.send(info_msg)
-                        msg = {}
-                        if session.night_count == 0: msg[self.lg('role_msg_header', a=self.a(role), role=role)] = role_msg
-                        if info_msg: msg[self.lg('info_msg_header')] = info_msg
-                        if msg: 
-                            embed = await self.wwembed(fields=msg, title=self.lg('your_role_header'))
+                        embed = await self.format_role_info(*self.send_role_info(session, player), send_role=session.night_count == 0)
+                        if embed.fields: 
                             await player.send(embed=embed)
                     except discord.Forbidden:
                         await session.send(self.lg('role_dm_off', mention=player.mention))
@@ -694,7 +688,7 @@ class GameEngine:
                 # fool stuff
 
         elif not lynched_player and self.in_session(session):
-            await session.send(self.lg('not_enough_votes'))
+            await session.send(embed=await self.wwembed(description=self.lg('not_enough_votes'), footer=False))
 
         return session
 
@@ -715,11 +709,11 @@ class GameEngine:
 
         if not vote_start and (datetime.utcnow() - session.day_start).total_seconds() > DISCUSSION_LENGTH:
             vote_start = True
-            await session.send(self.lg('voting_start'))
+            await session.send(embed=await self.wwembed(description=self.lg('voting_start'), footer=False))
 
         if not warn and (datetime.utcnow() - session.day_start).total_seconds() > self.dwarn:
             warn = True
-            await session.send(self.lg('almost_night'))
+            await session.send(embed=await self.wwembed(description=self.lg('almost_night'), footer=False))
 
         return session, lynched_player, totem_dict, vote_start, warn
 
@@ -1068,7 +1062,7 @@ class GameEngine:
             role = player if player.role not in [] else self.roles_list['villager']
             templates = player.template
 
-            role_msg = self.lg('your_role', role=self.lgr(rolename), description=self.lgr(rolename, 'desc'))
+            role_msg = self.lgr(rolename, 'desc')
 
             msg = []
             living_players = [x for x in session.players if x.alive]
@@ -1113,6 +1107,14 @@ class GameEngine:
             return '', '', ''  # vengeful ghost
         else:
             return '', '', ''
+
+    async def format_role_info(self, role_msg, info_msg, role, *, ctx=None, send_role=True):
+        msg = {}
+        if send_role: msg[self.lg('role_msg_header', a=self.a(role), role=role.capitalize())] = role_msg
+        if info_msg: msg[self.lg('info_msg_header')] = info_msg
+        context = {'ctx': ctx} if ctx is not None else {'footer': False}
+        embed = await self.wwembed(**context, fields=msg, title=self.lg('your_role_header', role=role))
+        return embed
 
     def get_votes(self, session):
         totem_dict = {}
